@@ -37,6 +37,11 @@ import {
 } from "./games/ClassicGames";
 import WikiRaceGame from "./games/WikiRaceGame";
 import VideoChallengeGame from "./games/VideoGames";
+import {
+  AutoBargainGame,
+  DialogueBaaziGame,
+  GolgappaChaatGame,
+} from "./games/DesiGames";
 
 interface Props {
   g: LiveGame;
@@ -49,12 +54,12 @@ interface Props {
 }
 
 const BOT_TALK = [
-  "Checking my panel right now 👀",
-  "Hold on, reading my piece!",
-  "Let's sync before locking the move 🤝",
-  "Looking clean — go for it! 🔥",
-  "Got eyes on the objective 🎯",
-  "Nice pace everyone!",
+  "अरे आराम से देख के गुरु, अपना ही राउंड है! 👀🔥",
+  "रुको ज़रा... पैनल पे क्लू चेक कर रहा हूँ! 🧐",
+  "पूरा तालमेल रखो पलटन, गर्दा उड़ा देंगे! 🤝⚡",
+  "एकदम कड़क मूव भाई — लॉक कर दो! 🎯👑",
+  "हारने वाला समोसा + चाय पिलाएगा याद रखना! 🥟☕",
+  "भौकाल टाइट चल रहा है टीम का! 🔥",
 ];
 
 export default function GameOverlay({
@@ -575,6 +580,9 @@ export default function GameOverlay({
 
         {/* Game Viewport */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-5">
+          {g.id === "dialogue" && <DialogueBaaziGame {...props} />}
+          {g.id === "golgappa" && <GolgappaChaatGame {...props} />}
+          {g.id === "bargain" && <AutoBargainGame {...props} />}
           {g.id === "bomb" && <BombGame {...props} />}
           {g.id === "astro" && <AstroGame {...props} />}
           {g.id === "reactor" && <ReactorGame {...props} />}

@@ -11,6 +11,48 @@ export interface EmojiCategory {
 
 export const EMOJI_GROUPS: EmojiCategory[] = [
   {
+    label: "Desi & UP Adda",
+    icon: "🇮🇳",
+    emojis: [
+      ["🙏", "namaste pranam ram ram jai ho dhanyawad thanks respect"],
+      ["🔥", "bhaukaal garda bawaal kattai zahar systumm fire lit"],
+      ["🤣", "hasi bakaiti lol lmao gajab beizzati funny"],
+      ["😂", "hasna tears laughing binod joke"],
+      ["💀", "maro mujhe maro dead khatam tata bye"],
+      ["🫡", "salute bhai ne bola karne ka guruji"],
+      ["👑", "jalwa king raja maharaj mirzapur boss"],
+      ["🦁", "sher babbar sher attitude up"],
+      ["😎", "systumm swag chacha vidhayak attitude"],
+      ["☕", "chai adrak tapri kulhad tea chuski"],
+      ["🫖", "ketli chaiwala tapri adrak elaichi"],
+      ["🥟", "samosa momos golgappa pani puri kachori chaat"],
+      ["🍛", "biryani chole chawal rajma paneer thali"],
+      ["🍲", "paneer tikka handi nihari kebab daawat"],
+      ["🌶️", "teekha mirchi nazar battu spicy"],
+      ["🧿", "nazar battu kala teeka evil eye safe"],
+      ["🏏", "cricket ipl sixer virat kohli dhoni rohit"],
+      ["🛺", "auto rickshaw tempo meter sharing ncr"],
+      ["🚙", "thar scorpio fortuner vip gedi"],
+      ["🪔", "diya deepawali arti shubh"],
+      ["🚩", "bhagwa jai shri ram hanuman mandir"],
+      ["🕉️", "om har har mahadev banaras kashi"],
+      ["🥁", "dhol baraat shaadi bhangra dance"],
+      ["🐍", "nagin dance been baraat"],
+      ["🎺", "band baaja baraat ipl"],
+      ["💸", "paisa hi paisa udhaar party kharcha"],
+      ["🤑", "scheme double paisa raju"],
+      ["🤝", "bhaichara dosti pakka वादा"],
+      ["🤦", "abe yaar gajab beizzati mattha"],
+      ["👀", "dekh raha hai binod पंचायत"],
+      ["🤡", "feku joker kat gaya"],
+      ["🥳", "party treat birthday masti"],
+      ["💃", "thumka dance sangeet"],
+      ["🕺", "baraat dance hero"],
+      ["⚡", "bijli transformer current jhatka"],
+      ["💯", "ekdam sahi 100 taka pakka"],
+    ],
+  },
+  {
     label: "Smileys & Emotion",
     icon: "😀",
     emojis: [
@@ -933,30 +975,30 @@ export const GIFS: GifItem[] = [
 export const gifUrl = (id: string) => `https://media.giphy.com/media/${id}/giphy.gif`;
 
 // ==========================================
-// 3. COLLABORATIVE GAME EXPANDED DATA
+// 3. COLLABORATIVE GAME EXPANDED DATA (DESI + UP/DELHI EDITION)
 // ==========================================
 
 export const CIPHER_PHRASES = [
-  { phrase: "TEAMWORK MAKES THE DREAM WORK", runes: "🤝 ✨ 🚀 🌟 🏆 💫 👑 🎯" },
-  { phrase: "CHAMPIONS NEVER SURRENDER", runes: "🛡️ ⚔️ 🔥 ⚡ 🦁 🦾 🏹 🏆" },
-  { phrase: "THE SECRET CODE IS UNLOCKED", runes: "🗝️ 🔒 💎 📜 🔮 🛸 🪐 🧬" },
-  { phrase: "MISSION ACCOMPLISHED TEAM", runes: "🚀 🛰️ 🌍 💫 📡 🌌 🌠 🛸" },
-  { phrase: "COORDINATION BEATS CHAOS", runes: "⚡ 🧩 🌊 🌪️ 🧭 ⚓ 🧱 ⏳" },
+  { phrase: "BHAUKAAL TIGHT HAI GURU", runes: "👑 🔥 🦁 ⚡ 🕶️ 🎯 💥 🚀" },
+  { phrase: "CHAI AUR SAMOSA PARTY", runes: "☕ 🥟 🫖 🌶️ 🎉 🥳 💸 ✨" },
+  { phrase: "DOSTI MEIN NO SORRY", runes: "🤝 ❤️ 🔥 🌟 🫡 🏆 💫 👑" },
+  { phrase: "APNA TIME AAYEGA BHAI", runes: "🚀 ⚡ 🌟 👑 🎤 🔥 💎 🏆" },
+  { phrase: "MUSKURAIYE AAP ADDE MEIN HAIN", runes: "🕌 ✨ 🌸 😊 🫖 👑 💫 🎶" },
 ];
 
 export const ASTRO_SYSTEMS = [
-  { name: "Oxygen Scrubber", icon: "🫧", req: "Purge valve at 80% with green bypass" },
-  { name: "Shield Array", icon: "🛡️", req: "Align plasma harmonics to frequency delta" },
-  { name: "Warp Core", icon: "⚛️", req: "Equalize antimatter injectors across nodes" },
-  { name: "Comms Dish", icon: "📡", req: "Calibrate beacon to pulsar coordinates" },
-  { name: "Thruster Vector", icon: "🚀", req: "Reset pitch gimbal to zero-g meridian" },
+  { name: "क्रायोजेनिक जुगाड़ वाल्व", icon: "🫧", req: "प्रेशर मीटर 80% — हरा बाईपास कोड डालो" },
+  { name: "हीट शील्ड कवच", icon: "🛡️", req: "सोलर डिफ्लेक्टर को लॉक करो" },
+  { name: "मुख्य इंजन थ्रस्टर", icon: "🚀", req: "अग्नि-बूस्टर नोज़ल चालू करो" },
+  { name: "इसरो रडार डिश", icon: "📡", req: "बेंगलुरु + लखनऊ स्टेशन से सिग्नल मिलाओ" },
+  { name: "चाय-थर्मस कूलिंग", icon: "☕", req: "क्रू केबिन का तापमान कंट्रोल करो" },
 ];
 
 export const REACTOR_FREQUENCIES = [
-  { name: "ALPHA 432Hz", color: "from-blue-500 to-cyan-400", hex: "#06b6d4", note: "Resonates cool blue" },
-  { name: "GAMMA 528Hz", color: "from-emerald-500 to-teal-400", hex: "#10b981", note: "Stabilizes flux green" },
-  { name: "OMEGA 741Hz", color: "from-amber-500 to-yellow-400", hex: "#f59e0b", note: "Charges plasma gold" },
-  { name: "DELTA 852Hz", color: "from-fuchsia-500 to-rose-400", hex: "#d946ef", note: "Harmonizes violet surge" },
+  { name: "फेज़-1 कूलर लाइन", color: "from-blue-500 to-cyan-400", hex: "#06b6d4", note: "नीला फेज़ जोड़े" },
+  { name: "फेज़-2 एसी ग्रिड", color: "from-emerald-500 to-teal-400", hex: "#10b981", note: "हरा वोल्टेज" },
+  { name: "फेज़-3 मेन खंभा", color: "from-amber-500 to-yellow-400", hex: "#f59e0b", note: "पीला ट्रांसफार्मर" },
+  { name: "बूस्टर स्टेबलाइज़र", color: "from-fuchsia-500 to-rose-400", hex: "#d946ef", note: "गुलाबी हाई-पावर" },
 ];
 
 // ==========================================
@@ -1047,72 +1089,147 @@ export function makeAvatar(name: string, seedNum = 0): string {
 export const AVATAR_SEEDS = [14, 77, 143, 219, 286, 351];
 
 export const STATUS_PRESETS = [
-  "Ready to play 🎮",
-  "Planning the trip 🗺️",
-  "Working + coffee ☕",
-  "In transit 🚆",
-  "Movie night mode 🍿",
-  "Down for anything ⚡",
+  "भौकाल टाइट है 🔥",
+  "अदरक वाली चाय मूड ☕",
+  "Systumm हैंग करने आया हूँ 😎",
+  "नोएडा/दिल्ली ट्रैफिक में 🚗",
+  "बस एक गेम और भाई 🎮",
+  "मम्मी के ताने सुन रहा हूँ 😭",
 ];
 
 export const BOTS: Member[] = [
   {
-    id: "bot-aarav",
-    name: "Aarav",
-    avatar: makeAvatar("Aarav", 210),
-    bio: "Game strategist · Bengaluru ☕",
+    id: "bot-guddu",
+    name: "Guddu Bhaiya",
+    avatar: makeAvatar("Guddu", 24),
+    bio: "भौकाल टाइट · बनारस/मिर्ज़ापुर ☕",
     lastSeen: 0,
     bot: true,
   },
   {
-    id: "bot-meera",
-    name: "Meera",
-    avatar: makeAvatar("Meera", 330),
-    bio: "Trip planner & quiz ace 🧭",
+    id: "bot-rohan",
+    name: "Rohan NCR",
+    avatar: makeAvatar("Rohan", 210),
+    bio: "नोएडा Sector-18 · मोमोज़ + गेम्स 🔥",
     lastSeen: 0,
     bot: true,
   },
   {
-    id: "bot-zoe",
-    name: "Zoe",
-    avatar: makeAvatar("Zoe", 140),
-    bio: "Speedrunner · Always down for C4 🔴",
+    id: "bot-ananya",
+    name: "Ananya",
+    avatar: makeAvatar("Ananya", 330),
+    bio: "लखनऊ तहज़ीब · ट्रिप प्लानर ✨",
+    lastSeen: 0,
+    bot: true,
+  },
+  {
+    id: "bot-chintu",
+    name: "Chintu Jugadu",
+    avatar: makeAvatar("Chintu", 140),
+    bio: "कानपुर/मेरठ · हर मर्ज़ का जुगाड़ 😎",
     lastSeen: 0,
     bot: true,
   },
 ];
 
 export const BOT_REPLIES: { match: RegExp; replies: string[] }[] = [
-  { match: /\b(hi|hello|hey|namaste|yo|morning|evening|sup)\b/i, replies: ["Hey {name}! 👋 Good to have you in here!", "Yo {name}! 😄 What's the move — chat, plan a trip, or run a game?", "Namaste {name}! 🙏 Room's live and synced!"] },
-  { match: /\bhow are you|how's it going|whats up|what's up\b/i, replies: ["All good on my end! Ready to plan or jump into a squad round 😎", "Doing great {name}! Hit 🎮 Arcade whenever you want a warm-up round.", "Vibing with coffee ☕ What are we cooking up today?"] },
-  { match: /\b(game|play|bored|fun|mini-game|arcade|match)\b/i, replies: ["Say less — type GAME in all caps or hit 🎮 Arcade and let's run it! 🔥", "I'm down! Defuse the Bomb or Connect Four? 🧨🔴", "Let's gooo {name} — my reflexes are warmed up 🎯"] },
-  { match: /\b(trip|travel|vacation|holiday|flight|train|hotel|itinerary|weekend)\b/i, replies: ["Ooh trip talk! Tap 🔎 Search & Plan so we can pull live weather + stays and vote on a card 🧭", "Count me in 🧳 Pull up the route in 🔎 Search and toggle the group poll!", "Let's compare trains vs flights in 🔎 Search first so we lock dates early 🚆✈️"] },
-  { match: /\b(movie|cinema|tickets|dune|film|popcorn|showtime)\b/i, replies: ["Cinema plan!! 🍿 Pull it up in 🔎 Search so we can vote on showtimes!", "Count me in for middle-row seats 🎬 Check BookMyShow in the search console!", "Which showtime works best for everyone? Drop a /poll! 🎟️"] },
-  { match: /\b(food|hungry|pizza|lunch|dinner|coffee|cafe|biryani|chai)\b/i, replies: ["Now I'm officially hungry 🍕 Search spots near us in 🔎 Search!", "Chai/coffee run first, zero negotiations ☕😄", "Drop a food card or /poll — pizza vs biryani never fails! 🍽️"] },
-  { match: /\b(thanks|thank you|thx|appreciate)\b/i, replies: ["Anytime {name}! 🙌", "Always got your back 🤝", "Of course! Teamwork makes it easy ✨"] },
-  { match: /\b(bye|goodnight|gtg|see you|sleep|brb)\b/i, replies: ["Catch you soon {name}! 👋 Room stays synced whenever you're back.", "See ya! Ping the link when you're back online 🙌", "Goodnight! Rest up 🌙"] },
-  { match: /\b(lol|haha|lmao|rofl|😂|🤣|💀)\b/i, replies: ["😂😂 okay that got me", "hahaha fair enough 🤣", "no way 💀😂"] },
+  {
+    match: /\b(hi|hello|hey|namaste|pranam|ram ram|aur bhai|kya haal|yo|morning|evening|sup)\b/i,
+    replies: [
+      "अरे राम-राम {name} भाई! 🙏 आओ बैठो, आज अड्डे पे क्या माहौल है?",
+      "ओये {name} आ गया!! 🔥 और बता भाई क्या हाल-चाल, सब बढ़िया?",
+      "नमस्ते जनाब {name}! ✨ चाय मँगवाएँ या सीधा GAME लगाएँ?",
+    ],
+  },
+  {
+    match: /\b(kaise ho|kaisa hai|sab badhiya|how are you|whats up|what's up|kya chal raha)\b/i,
+    replies: [
+      "एकदम कट्टई ज़हर भाई! 😎 बस तेरा ही इंतज़ार था, खोल 🎮 Arcade!",
+      "सब फर्स्ट क्लास गुरु! ☕ शाम की चाय चल रही है, बता कौनसा गेम फोड़ना है?",
+      "मौज में हैं भाई {name}! तू सुना, आज बकैती करनी है या गोलगप्पा चैलेंज?",
+    ],
+  },
+  {
+    match: /\b(game|play|khel|bored|arcade|match|laga|lagao)\b/i,
+    replies: [
+      "अरे नेकी और पूछ-पूछ! सीधा बड़े अक्षरों में GAME लिख या 🎮 Arcade खोल — गर्दा उड़ा देते हैं! 🔥",
+      "चलो भाई हो जाए दो-दो हाथ! सुतली बम डिफ्यूज़ल या ऑटो भैया मोल-भाव? 🧨🛺",
+      "तैयार हूँ भाई {name}! हारने वाला समोसा पार्टी देगा पक्का डन! 🥟😂",
+    ],
+  },
+  {
+    match: /\b(chai|tea|samosa|momos|golgappa|pani puri|biryani|jalebi|paratha|maggi|hungry|bhookh|khana|party|treat)\b/i,
+    replies: [
+      "अरे यार नाम मत ले मुँह में पानी आ गया 🤤 अभी 🥟 गोलगप्पा vs मोमोज़ गेम चला या 🔎 Search में ढूँढ!",
+      "छोटू दो स्पेशल कुल्हड़ वाली अदरक चाय और गरम समोसे इधर भी ला भाई! ☕🥟",
+      "भाई बातें घुमा मत — पार्टी कब और कहाँ दे रहा है ये क्लियर बता पहले! 💸🤣",
+    ],
+  },
+  {
+    match: /\b(bhaukaal|systumm|system|jalwa|garda|bawaal|zahar|sher|king|attitude)\b/i,
+    replies: [
+      "जलवा है हमारा यहाँ!! 👑🔥 पूरा मोहल्ला जानता है भाई!",
+      "Systumm फाड़ देंगे गुरु! 🕶️⚡ बस एक बार हॉर्न बजा दे 📯!",
+      "अरे कट्टई बवाल माहौल बना दिए {name} भैया! 💯🔥",
+    ],
+  },
+  {
+    match: /\b(trip|travel|vacation|ghoomne|chale|flight|train|hotel|itinerary|weekend|road trip)\b/i,
+    replies: [
+      "ओ भाई ट्रिप का नाम लेते ही बैग पैक है मेरा! 🧳 बस 🔎 Search दबा के ट्रेन और बजट कार्ड डाल दे, वोटिंग कराते हैं!",
+      "देख रहा है बिनोद... प्लान हर बार बनता है, इस बार पक्का चलना है कोई मम्मी का बहाना नहीं बनाएगा! 😂🧭",
+      "चलो लॉक करते हैं! 🔎 Search में देखो Vande Bharat खाली है या गाड़ी निकालें? 🚆🚙",
+    ],
+  },
+  {
+    match: /\b(movie|cinema|tickets|film|popcorn|showtime|picture)\b/i,
+    replies: [
+      "पिक्चर का प्लान डन समझो! 🍿 कोने वाली रिक्लाइनर सीट अपनी है — 🔎 Search से शो-टाइम कार्ड डाल!",
+      "इंटरवल के समोसे और पॉपकॉर्न तेरी तरफ़ से भाई {name} 🎬😂",
+    ],
+  },
+  {
+    match: /\b(cricket|ipl|kohli|virat|dhoni|rohit|india|match|sixer)\b/i,
+    replies: [
+      "एक ही तो दिल है कितनी बार जीतोगे भाई!! 🏏🇮🇳 जरा 📯 दबाके IPL हॉर्न तो बजा दे!",
+      "आज तो स्टेडियम वाला माहौल बन गया गुरु! 🏏🔥",
+    ],
+  },
+  {
+    match: /\b(thanks|thank you|shukriya|dhanyawad|love you|bhai hai tu)\b/i,
+    replies: [
+      "अरे दोस्ती में नो सॉरी नो थैंक्यू भाई मेरे! 🫂❤️",
+      "हमेशा साथ हैं गुरु {name}! भाईचारा ऑन टॉप! 🤝🔥",
+    ],
+  },
+  {
+    match: /\b(lol|haha|lmao|rofl|hahaha|😂|🤣|💀|beizzati|binod)\b/i,
+    replies: [
+      "अबे ग़ज़ब बेइज़्ज़ती है यार 🤣🤣💀",
+      "ओ भाई मारो मुझे मारो, पेट दुख गया हँस-हँस के 😂😂",
+      "देख रहा है बिनोद... किस लेवल की कॉमेडी चल रही है यहाँ ☕🤣",
+    ],
+  },
 ];
 
 export const BOT_GENERIC = [
-  "100% down for that 🔥",
-  "Haha fair point 😄",
-  "Agreed 💯",
-  "Ooh let's check that in 🔎 Search so we have live numbers 🤔",
-  "Love that plan ✨",
-  "Wait really? Tell me more 👀",
+  "एकदम सही पकड़े हैं गुरु! 💯🔥",
+  "अरे वाह भाई वाह, बात में दम तो है 😎",
+  "सही कह रहा है भाई — एक लाइव /poll डाल दे दूध का दूध पानी का पानी हो जाएगा! 🗳️",
+  "माहौल तो पूरा सेट कर दिया आज अड्डे का ✨🔥",
+  "अच्छा जी? फिर आगे क्या हुआ बता ज़रा 👀☕",
 ];
 
 export const BOT_IDLE = [
-  "Quiet moment in the room — type GAME or hit 🎮 Arcade if you want a quick round 👀",
-  "Tip: share the room URL from the top bar with a friend on another phone or laptop to test live cross-device sync 🔗",
-  "Try typing /poll Weekend plan? | Movie night | Goa trip | Game tournament to run a live room vote 🗳️",
-  "Tap 🔎 Search & Plan anytime to pull live weather, forex splits, trains, or trip itineraries 🌐",
+  "अरे इतना सन्नाटा क्यों है भाई? 🧐 कोई GAME लिखो या 📯 प्रेशर हॉर्न बजाओ ज़रा!",
+  "टिप: ऊपर वाले 🔗 Invite लिंक को WhatsApp पे दोस्तों को भेजो — सब अलग-अलग फोन से लाइव जुड़ के खेलेंगे! 🔥",
+  "शाम हो रही है गुरु... /chai लिखो या 🎲 मसाला पोल डालो ग्रुप में! ☕🥟",
+  "चलो एक राउंड 🛺 'ऑटो भैया मोल-भाव' या 🎬 'मिर्ज़ापुर डायलॉग बाज़ी' हो जाए! 🎮 Arcade खोलो!",
 ];
 
 export const BOT_GAME_CHEER = [
-  "Clean execution everyone — gg! 🔥",
-  "Okay we actually cooked on that round 🎮",
-  "Clutch teamwork right before the buzzer 🏆",
-  "Zero panic, pure coordination 🙌",
+  "गर्दा उड़ा दिए गुरु!! पूरा अड्डा हिल गया आज! 🔥🏆",
+  "ये हुई ना UP-दिल्ली वाली बात — कट्टई ज़हर टीमवर्क! 👑🙌",
+  "जीत की खुशी में अब समोसा + जलेबी पार्टी पक्की समझो! 🥟🎉",
+  "एकतरफ़ा मुकाबला बना दिए भाई लोग! 🫡🔥",
 ];

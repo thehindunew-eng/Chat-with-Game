@@ -126,7 +126,7 @@ export default function SearchConsole({
     if (!SR) return;
     sounds.playPop();
     const rec = new SR();
-    rec.lang = "en-US";
+    rec.lang = "en-IN";
     rec.interimResults = true;
     rec.continuous = false;
     rec.onresult = (e: any) => {
@@ -180,7 +180,7 @@ export default function SearchConsole({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && search()}
-              placeholder="e.g. Goa trip this weekend · trains Delhi to Jaipur · 500 usd to inr"
+              placeholder="जैसे: Rishikesh trip for 4 · trains Delhi to Varanasi · 3600 split 4 friends"
               className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 pr-24 text-sm text-white placeholder-slate-500 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
             />
             <div className="absolute right-2 flex items-center gap-1">

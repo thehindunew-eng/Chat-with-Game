@@ -1,4 +1,12 @@
-// Tactile Web Audio API sound effects engine (zero external files needed)
+// Tactile Web Audio API sound effects + Desi Bhaukaal Soundboard engine
+
+export type SoundDropId =
+  | "horn"
+  | "dhol"
+  | "nagin"
+  | "ipl"
+  | "ghanti"
+  | "chai";
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -33,7 +41,6 @@ class SoundEngine {
     osc.stop(t + 0.07);
   }
 
-  /** Realistic iMessage/WhatsApp outgoing swoosh + crisp chime */
   playSend() {
     if (!this.enabled) return;
     this.init();
@@ -52,7 +59,6 @@ class SoundEngine {
     osc.stop(t + 0.12);
   }
 
-  /** Tactile acrylic disc clack (Connect 4 & Sliding tiles) */
   playClack() {
     if (!this.enabled) return;
     this.init();
@@ -71,7 +77,6 @@ class SoundEngine {
     osc.stop(t + 0.06);
   }
 
-  /** Crisp wire-cutter metallic snip */
   playSnip() {
     if (!this.enabled) return;
     this.init();
@@ -209,6 +214,149 @@ class SoundEngine {
     gain.connect(this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.19);
+  }
+
+  /** Desi Bhaukaal Soundboard Drops */
+  playSoundDrop(id: SoundDropId) {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const base = ctx.currentTime;
+
+    if (id === "horn") {
+      // Classic Indian Highway Musical Pressure Horn ("Dhoom/GT Road Horn"!)
+      const notes = [
+        [587.3, 0, 0.12],
+        [659.25, 0.14, 0.12],
+        [783.99, 0.28, 0.14],
+        [659.25, 0.44, 0.11],
+        [783.99, 0.58, 0.34],
+      ];
+      notes.forEach(([freq, offset, dur]) => {
+        [1, 1.008].forEach((detune) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(freq * detune, base + offset);
+          gain.gain.setValueAtTime(0.11, base + offset);
+          gain.gain.exponentialRampToValueAtTime(0.005, base + offset + dur);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(base + offset);
+          osc.stop(base + offset + dur + 0.01);
+        });
+      });
+      return;
+    }
+
+    if (id === "dhol") {
+      // Punjabi / UP Baraat Dhol ("Dha-Ge-Na-Tin-Na-Ka-Dhin!")
+      const hits: [number, number, OscillatorType][] = [
+        [0, 125, "sine"],
+        [0.14, 340, "triangle"],
+        [0.24, 130, "sine"],
+        [0.4, 380, "triangle"],
+        [0.52, 125, "sine"],
+        [0.64, 135, "sine"],
+        [0.76, 420, "triangle"],
+      ];
+      hits.forEach(([off, f, type]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(f, base + off);
+        osc.frequency.exponentialRampToValueAtTime(48, base + off + 0.12);
+        gain.gain.setValueAtTime(0.24, base + off);
+        gain.gain.exponentialRampToValueAtTime(0.003, base + off + 0.13);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(base + off);
+        osc.stop(base + off + 0.14);
+      });
+      return;
+    }
+
+    if (id === "nagin") {
+      // Iconic Baraat Nagin Pungi Riff!
+      const riff = [523.25, 554.37, 659.25, 554.37, 523.25, 493.88, 523.25];
+      riff.forEach((f, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "square";
+        osc.frequency.setValueAtTime(f, base + i * 0.13);
+        gain.gain.setValueAtTime(0.09, base + i * 0.13);
+        gain.gain.exponentialRampToValueAtTime(
+          0.005,
+          base + i * 0.13 + 0.125
+        );
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(base + i * 0.13);
+        osc.stop(base + i * 0.13 + 0.13);
+      });
+      return;
+    }
+
+    if (id === "ipl") {
+      // Stadium Sixer Charge Bugle!
+      const charge = [
+        [523.25, 0, 0.1],
+        [659.25, 0.11, 0.1],
+        [783.99, 0.22, 0.1],
+        [1046.5, 0.34, 0.22],
+        [783.99, 0.58, 0.1],
+        [1046.5, 0.7, 0.38],
+      ];
+      charge.forEach(([f, off, dur]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(f, base + off);
+        gain.gain.setValueAtTime(0.19, base + off);
+        gain.gain.exponentialRampToValueAtTime(0.005, base + off + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(base + off);
+        osc.stop(base + off + dur + 0.01);
+      });
+      return;
+    }
+
+    if (id === "ghanti") {
+      // Pure Brass Temple Bell Shimmer
+      [1046.5, 1568, 2093, 2637].forEach((f, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(f, base);
+        gain.gain.setValueAtTime(0.14 / (idx + 1), base);
+        gain.gain.exponentialRampToValueAtTime(0.001, base + 1.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(base);
+        osc.stop(base + 1.12);
+      });
+      return;
+    }
+
+    // Tapri Kulhad Clink + Whistle
+    [980, 1320].forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(f, base + idx * 0.12);
+      osc.frequency.exponentialRampToValueAtTime(
+        f * 1.18,
+        base + idx * 0.12 + 0.1
+      );
+      gain.gain.setValueAtTime(0.13, base + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.002, base + idx * 0.12 + 0.14);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(base + idx * 0.12);
+      osc.stop(base + idx * 0.12 + 0.15);
+    });
   }
 }
 

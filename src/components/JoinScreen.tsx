@@ -12,7 +12,7 @@ interface Props {
   full?: boolean;
 }
 
-const ROOM_PRESETS = ["lobby", "friday-squad", "goa-trip", "game-night"];
+const ROOM_PRESETS = ["adda-up16", "friday-squad", "goa-plan", "mirzapur-gang", "chai-tapri"];
 
 function resizeImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -175,21 +175,21 @@ export default function JoinScreen({
         </div>
 
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-violet-600 via-indigo-600 to-teal-500 text-2xl shadow-xl shadow-violet-950/60">
-            ⚡
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-500 via-orange-600 to-indigo-600 text-2xl shadow-xl shadow-orange-950/60">
+            🇮🇳
           </div>
           <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-            Chat<span className="bg-gradient-to-r from-violet-400 to-teal-300 bg-clip-text text-transparent">Arena</span>{" "}
-            <span className="align-middle text-xs font-extrabold uppercase tracking-widest text-slate-400">
-              Live
+            Chat<span className="bg-gradient-to-r from-amber-400 via-orange-400 to-emerald-400 bg-clip-text text-transparent">Adda</span>{" "}
+            <span className="align-middle text-xs font-extrabold uppercase tracking-widest text-amber-300">
+              UP · दिल्ली Live
             </span>
           </h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Real-time messenger across phones &amp; laptops. Type{" "}
-            <span className="rounded-md border border-amber-400/30 bg-amber-500/15 px-1.5 py-0.5 font-mono text-xs font-bold text-amber-300">
+          <p className="mt-2 text-sm text-slate-300">
+            यारों का लाइव देसी अड्डा — अलग-अलग फोन से जुड़ो, मीम्स और 📯 हॉर्न बजाओ!{" "}
+            <span className="rounded-md border border-amber-400/40 bg-amber-500/20 px-1.5 py-0.5 font-mono text-xs font-bold text-amber-300">
               GAME
             </span>{" "}
-            and the whole room drops into a tactile squad game.
+            लिखते ही पूरे ग्रुप में लाइव मुकाबला चालू! 🔥
           </p>
         </div>
 

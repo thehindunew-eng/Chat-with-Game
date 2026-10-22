@@ -32,6 +32,15 @@ export default defineConfig({
         manualChunks: {
           react: ["react", "react-dom"],
           supabase: ["@supabase/supabase-js"],
+          arcade: [
+            "./src/components/GameOverlay.tsx",
+            "./src/components/GameLibrary.tsx",
+            "./src/components/games/DesiGames.tsx",
+            "./src/components/games/CoopGames.tsx",
+            "./src/components/games/ClassicGames.tsx",
+            "./src/components/games/WikiRaceGame.tsx",
+            "./src/components/games/VideoGames.tsx",
+          ],
         },
       },
     },

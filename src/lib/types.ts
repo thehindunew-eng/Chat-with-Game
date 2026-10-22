@@ -1,7 +1,9 @@
+import type { SoundDropId } from "./audio";
+
 export interface User {
   id: string;
   name: string;
-  avatar: string; // data URL
+  avatar: string;
   bio?: string;
   device?: "mobile" | "desktop";
 }
@@ -60,7 +62,7 @@ export interface ResultRow {
 export interface PollOption {
   id: string;
   label: string;
-  votes: string[]; // array of user names
+  votes: string[];
 }
 
 export interface SquadPoll {
@@ -121,8 +123,11 @@ export interface Message {
   delivery?: "sending" | "sent" | "cloud";
 }
 
-/* ---------- expanded collaborative games ---------- */
+/* ---------- 18 UP/Delhi + Global Multiplayer Squad Games ---------- */
 export type GameId =
+  | "dialogue"
+  | "golgappa"
+  | "bargain"
   | "bomb"
   | "astro"
   | "reactor"
@@ -175,110 +180,131 @@ export const GAME_META: Record<
   GameId,
   { name: string; emoji: string; blurb: string; minutes: string; tag: string }
 > = {
+  dialogue: {
+    name: "फ़िल्मी & मिर्ज़ापुर डायलॉग बाज़ी",
+    emoji: "🎬",
+    blurb: "Mirzapur, Panchayat, Hera Pheri & Bollywood के आइकॉनिक डायलॉग सबसे तेज़ पहचानो!",
+    minutes: "75s",
+    tag: "Desi Buzzer Quiz",
+  },
+  golgappa: {
+    name: "गोलगप्पा vs मोमोज़ ठेला चैलेंज",
+    emoji: "🥟",
+    blurb: "चाट ठेले से गोलगप्पे, मोमोज़, जलेबी और कुल्हड़ चाय लपक लो — तीखी मिर्ची बम से बचके!",
+    minutes: "45s",
+    tag: "Chaat Speed Co-op",
+  },
+  bargain: {
+    name: "NCR ऑटो भैया मोल-भाव (Bargaining)",
+    emoji: "🛺",
+    blurb: "'मीटर खराब है भैया!' — असली दिल्ली/UP स्टाइल में किराया ₹450 से घटा के सही दाम पे लाओ!",
+    minutes: "80s",
+    tag: "UP/NCR Jugaad",
+  },
   bomb: {
-    name: "Defuse the Bomb",
+    name: "सुतली बम डिफ्यूज़ल (Sutli Bomb)",
     emoji: "🧨",
-    blurb: "Tactile C4 module: combine confidential wire clues before 3 strikes detonate",
+    blurb: "मुन्ना भैया का जोड़ा हुआ 5-तार वाला बम! सीक्रेट सुराग मिलाकर सही तार काटो वरना धमाका!",
     minutes: "75s",
     tag: "Tactical Co-op",
   },
   astro: {
-    name: "Starship Emergency Repair",
+    name: "ISRO जुगाड़ रॉकेट रिपेयर",
     emoji: "🚀",
-    blurb: "Bridge telemetry critical: exchange override passcodes across 4 ship consoles",
+    blurb: "कंट्रोल रूम अलर्ट! एक-दूसरे को पासकोड बताओ और चारों इंजन कंसोल चालू करो!",
     minutes: "80s",
-    tag: "Bridge Sim",
+    tag: "Jugaad Sim",
   },
   reactor: {
-    name: "Quantum Reactor Sync",
+    name: "बिजली विभाग ट्रांसफार्मर सिंक",
     emoji: "⚡",
-    blurb: "Stabilize the spinning plasma core by tapping harmonic waves in rhythm",
+    blurb: "मोहल्ले की लाइट कटने वाली है! चारों फेज़ को टाइम पे सिंक करो ताकि कूलर-एसी चलते रहें!",
     minutes: "60s",
-    tag: "Harmonic Sync",
+    tag: "Mohalla Grid",
   },
   cipher: {
-    name: "Emoji Cipher Hack",
+    name: "सीक्रेट पर्चा डिकोड (Cipher Hack)",
     emoji: "🕵️",
-    blurb: "Crack the encrypted transmission — every player holds partial rune keys",
+    blurb: "सबके पास आधे-अधूरे कोड हैं — मिलके गुप्त संदेश का एक-एक शब्द खोलो!",
     minutes: "90s",
-    tag: "Cryptanalysis",
+    tag: " detective Adda",
   },
   chain: {
-    name: "Word Chain Relay",
+    name: "शब्द अंताक्षरी रिले (Word Chain)",
     emoji: "🔗",
-    blurb: "Pass the baton around the room — each word starts with the last letter",
+    blurb: "आखिरी अक्षर से नया शब्द जोड़ो — चेन टूटने मत देना गुरु!",
     minutes: "90s",
-    tag: "Word Relay",
+    tag: "Antakshari Relay",
   },
   blitz: {
-    name: "Target Blitz Co-op",
+    name: "दशहरा मेला गुब्बारा शूटिंग",
     emoji: "🎯",
-    blurb: "Live multi-device range — everyone taps live targets simultaneously",
+    blurb: "मेले की बंदूक स्टॉल! पूरा ग्रुप एक साथ लाइव निशाने उड़ाएगा!",
     minutes: "35s",
-    tag: "Reflex Range",
+    tag: "Mela Reflex",
   },
   codebreak: {
-    name: "Code Breakers",
-    emoji: "🧩",
-    blurb: "Cooperative Mastermind — deduce the 4-peg cipher in 8 attempts",
+    name: "तिजोरी का ताला तोड़ो (Code Break)",
+    emoji: "🔐",
+    blurb: "4 प्रतीकों वाला गुप्त लॉक 8 बारी में बूझो — असली दिमागी कसरत!",
     minutes: "90s",
-    tag: "Deduction",
+    tag: " sharp Dimag",
   },
   story: {
-    name: "Story Relay",
+    name: "बकैती कहानी रिले (Story Adda)",
     emoji: "📖",
-    blurb: "Co-author a chaotic short story together, one sentence fragment per turn",
+    blurb: "बारी-बारी 2–8 शब्द जोड़कर सबसे बवाल और हँसाने वाली कहानी बनाओ!",
     minutes: "100s",
-    tag: "Improv",
+    tag: "Full Bakaiti",
   },
   tictactoe: {
-    name: "Tic-Tac-Toe Teams",
+    name: "ज़ीरो-काटा मुकाबला (Zero-Katta)",
     emoji: "⭕",
-    blurb: "Tactile neon grid — alternating teammates face off as X and O",
+    blurb: "क्लासिक स्कूल बेंच वाला ज़ीरो-काटा — Team काटा (✕) बनाम Team ज़ीरो (○)!",
     minutes: "75s",
-    tag: "Classic Board",
+    tag: "School Classic",
   },
   connect4: {
-    name: "Connect Four Teams",
+    name: "चार-गोटी Connect Showdown",
     emoji: "🔴",
-    blurb: "Acrylic gravity rack — drop red & gold discs to connect four in a row",
+    blurb: "लाल और सुनहरी गोटियाँ गिराओ — जो टीम पहले 4 लाइन से जोड़ेगी उसकी जीत!",
     minutes: "100s",
-    tag: "Gravity Board",
+    tag: "Adda Board",
   },
   slide: {
-    name: "Sliding Puzzle Relay",
+    name: "नंबर पहेली स्लाइड (8-Puzzle)",
     emoji: "🧩",
-    blurb: "Brushed metal 8-puzzle — alternate legal moves to restore 1 through 8",
+    blurb: "एक चाल तुम, एक चाल दोस्त — 1 से 8 की गिनती लाइन में सेट करो!",
     minutes: "120s",
-    tag: "Spatial Relay",
+    tag: "Dimagi Relay",
   },
   wikirace: {
-    name: "WikiRace Live",
+    name: "WikiRace इंडिया स्पेशल",
     emoji: "🏁",
-    blurb: "Navigate real Wikipedia hyperlinks from start article to target first",
+    blurb: "ताजमहल से बनारस या समोसे से उत्तर प्रदेश — असली विकिपीडिया लिंक्स से सबसे पहले पहुँचो!",
     minutes: "180s",
     tag: "Live Web Race",
   },
   controller: {
-    name: "Pass the Controller",
+    name: "पास द कंट्रोलर रील",
     emoji: "🎮",
-    blurb: "Record your move, smash PASS, and cut the camera to the next teammate",
+    blurb: "अपना स्वैग रिकॉर्ड करो, PASS दबाओ और कैमरा सीधे अगले दोस्त पर कट!",
     minutes: "150s",
-    tag: "Video Relay",
+    tag: "Desi Reel Cut",
   },
   npc: {
-    name: "The NPC Walk",
+    name: "सदर बाज़ार NPC वॉक",
     emoji: "🚶",
-    blurb: "30-second camera challenge — move like a gloriously glitchy background NPC",
+    blurb: "30 सेकंड का कैमरा चैलेंज — GTA के अटके हुए NPC जैसी चाल दिखाओ!",
     minutes: "150s",
-    tag: "Video Challenge",
+    tag: "Funny Camera",
   },
   desk: {
-    name: "Speedrun Your Desk",
-    emoji: "🗄️",
-    blurb: "Organize your desk in a 15-second recording with synthesized arcade audio",
+    name: "मम्मी आ रहीं हैं — 15s कमरा साफ़!",
+    emoji: "🧹",
+    blurb: "चप्पल उड़ने से पहले 15 सेकंड में मेज़/कमरा सेट करो — देसी आर्केड बीट के साथ!",
     minutes: "150s",
-    tag: "Video Speedrun",
+    tag: "Mummy Alert!",
   },
 };
 
@@ -288,6 +314,7 @@ export type BusEvent =
   | { t: "del"; id: string }
   | { t: "seen"; reader: string; ids: string[] }
   | { t: "typing"; uid: string; name: string; until: number }
+  | { t: "sound"; soundId: SoundDropId; by: string }
   | { t: "game"; g: LiveGame | null }
   | { t: "presence" };
 

@@ -57,14 +57,18 @@ import {
 import { RoomSyncClient } from "../lib/realtime";
 import { looksLikeQuestion } from "../lib/search";
 import { summarize, type Summary } from "../lib/summarize";
-import { EmojiPicker, GifPicker } from "./Pickers";
+import { EmojiPicker, GifPicker, SoundboardPicker } from "./Pickers";
 import GameOverlay from "./GameOverlay";
 import SearchConsole from "./SearchConsole";
 import SearchCardView from "./SearchCardView";
 import GameLibrary from "./GameLibrary";
-import { sounds } from "../lib/audio";
+import { sounds, type SoundDropId } from "../lib/audio";
+import { DESI_QUICK_POLLS, SOUNDBOARD_ITEMS } from "../lib/desiStickers";
 
 const GAME_IDS: GameId[] = [
+  "dialogue",
+  "golgappa",
+  "bargain",
   "bomb",
   "astro",
   "reactor",
@@ -85,76 +89,82 @@ const HUMAN_ONLY_GAMES: GameId[] = [
   "npc",
   "desk",
 ];
-const REACTIONS = ["👍", "👎", "🤔", "❤️", "😂", "🎉", "🔥", "🚀"];
+const REACTIONS = ["🙏", "🔥", "🤣", "❤️", "👑", "☕", "💀", "🚀"];
 
 const SLASH_COMMANDS = [
   {
     cmd: "/game",
-    label: "Open Squad Arcade",
+    label: "देसी पलटन आर्केड (18 गेम्स)",
     icon: "🎮",
-    desc: "Pick any of 15 live multiplayer games",
+    desc: "डायलॉग बाज़ी, गोलगप्पा चैलेंज, ऑटो मोल-भाव + 15 लाइव गेम्स!",
   },
   {
     cmd: "/poll",
-    label: "Create Live Room Poll",
+    label: "लाइव ग्रुप पोल / मसाला बहस",
     icon: "🗳️",
-    desc: "Vote on plans, movies, or next game with live % bars",
+    desc: "1-टैप देसी पोल या खुद का सवाल डालो लाइव वोटिंग के साथ",
+  },
+  {
+    cmd: "/horn",
+    label: "UP प्रेशर हॉर्न बजाओ! 📯",
+    icon: "📯",
+    desc: "ग्रुप के सारे फोन्स पर एक साथ ज़ोरदार हॉर्न साउंड बजाओ!",
+  },
+  {
+    cmd: "/chai",
+    label: "टपरी अदरक चाय + समोसा ऑर्डर",
+    icon: "☕",
+    desc: "पूरे अड्डे के लिए गरमा-गरम कुल्हड़ चाय सीटी के साथ मँगाओ!",
   },
   {
     cmd: "/trip",
-    label: "Plan Trip Itinerary",
+    label: "ट्रिप प्लानर (ऋषिकेश / गोवा / मनाली)",
     icon: "🧭",
-    desc: "Day-by-day itinerary, weather & budget split",
+    desc: "पूरा दिन-वार प्लान, लाइव मौसम और प्रति व्यक्ति खर्च हिसाब",
   },
   {
     cmd: "/train",
-    label: "Search Trains (IRCTC)",
+    label: "ट्रेन सर्च (IRCTC / Vande Bharat)",
     icon: "🚆",
-    desc: "Timetables, routes & booking links",
+    desc: "दिल्ली, लखनऊ, बनारस, कानपुर लाइव ट्रेन रूट व बुकिंग",
   },
   {
     cmd: "/flight",
-    label: "Search Flights",
+    label: "सस्ती फ्लाइट्स देखें",
     icon: "✈️",
-    desc: "Compare lowest fares & schedules",
+    desc: "किराया और टाइमिंग की तुरंत तुलना करें",
   },
   {
     cmd: "/movie",
-    label: "Movie Showtimes & Seats",
+    label: "मूवी शो-टाइम & टिकट",
     icon: "🎬",
-    desc: "Find cinema tickets, ratings & trailer",
-  },
-  {
-    cmd: "/stay",
-    label: "Find Stays & Hotels",
-    icon: "🏨",
-    desc: "Compare hotels, villas & homestays",
+    desc: "PVR / BookMyShow शो और ट्रेलर कार्ड ग्रुप में शेयर करें",
   },
   {
     cmd: "/weather",
-    label: "Check Live Weather",
+    label: "लाइव मौसम का हाल",
     icon: "🌦",
-    desc: "Real-time temperature & 5-day forecast",
+    desc: "अभी का तापमान और अगले 5 दिन का मौसम",
   },
   {
     cmd: "/food",
-    label: "Restaurants & Cafes",
-    icon: "🍔",
-    desc: "Discover nearby spots & delivery links",
+    label: "चाट, ढाबा & रेस्टोरेंट खोजें",
+    icon: "🥟",
+    desc: "आस-पास के बढ़िया खाने के ठिकाने ढूँढें",
   },
   {
     cmd: "/calc",
-    label: "Live Forex & Bill Split",
-    icon: "💱",
-    desc: "Convert currencies & split group costs",
+    label: "पार्टी बिल स्प्लिट & करेंसी हिसाब",
+    icon: "💸",
+    desc: "दोस्तों में खर्च बराबर बाँटें बिना उधार की चिकचिक के",
   },
 ];
 
 const PLACEHOLDERS = [
-  "Message room… (type 'GAME' to launch a live round)",
-  "Type '/' for polls, trips, movies, forex & arcade…",
-  "Share your room URL so friends join live from any device…",
-  "Ask any question ending with '?' to preview live search cards…",
+  "अड्डे पे कुछ लिखो भाई… ('GAME' लिखते ही लाइव मुकाबला चालू! 🔥)",
+  "'/' लिखो — /horn, /chai, /poll, /trip, /train सब हाज़िर है! 😎",
+  "🔥 मीम बटन दबाओ — मिर्ज़ापुर, पंचायत और हेरा फेरी स्टीकर भेजो!",
+  "📯 हॉर्न बटन से पूरे ग्रुप के फोन पर लाइव ढोल/हॉर्न बजाओ!",
 ];
 
 const fmtTime = (ts: number) =>
@@ -220,7 +230,7 @@ export default function ChatRoom({
   const [replyingTo, setReplyingTo] = useState<ReplyPreview | null>(null);
   const [editingMsg, setEditingMsg] = useState<Message | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [picker, setPicker] = useState<"emoji" | "gif" | null>(null);
+  const [picker, setPicker] = useState<"emoji" | "gif" | "sound" | null>(null);
   const [typing, setTyping] = useState<
     Record<string, { name: string; until: number }>
   >({});
@@ -409,7 +419,8 @@ export default function ChatRoom({
       text: string,
       readDelayMs: number,
       typingMs = 1500,
-      replyTo?: ReplyPreview
+      replyTo?: ReplyPreview,
+      attachment?: Attachment
     ) => {
       const t1 = window.setTimeout(() => {
         if (!botsActiveRef.current) return;
@@ -441,6 +452,7 @@ export default function ChatRoom({
             ts: Date.now(),
             text,
             replyTo,
+            attachment,
           });
         }, typingMs);
         botTimersRef.current.push(t2);
@@ -452,13 +464,13 @@ export default function ChatRoom({
 
   const maybeBotReply = useCallback(
     (msg: Message) => {
-      if (!leaderRef.current || !botsActiveRef.current || !msg.text) return;
+      if (!leaderRef.current || !botsActiveRef.current) return;
+      if (!msg.text && msg.attachment?.type !== "gif") return;
       const plan = generateContextualBotReply(
         msg.name,
-        msg.text,
+        msg.text || "",
         messagesRef.current
       );
-      // Mark message read realistically shortly after sending
       const readerName = plan?.bot.name || BOTS[0].name;
       const tRead = window.setTimeout(() => {
         if (botsActiveRef.current) markMessageSeenBy(msg.id, readerName);
@@ -466,18 +478,26 @@ export default function ChatRoom({
       botTimersRef.current.push(tRead);
 
       if (!plan) return;
-      const shouldQuote = msg.text.length > 48 && Math.random() < 0.35;
+      const shouldQuote = Boolean(msg.text && msg.text.length > 48 && Math.random() < 0.35);
       botSay(
         plan.bot,
         plan.reply,
         plan.readDelayMs,
         plan.typingMs,
-        shouldQuote
+        shouldQuote && msg.text
           ? {
               id: msg.id,
               userId: msg.userId,
               name: msg.name,
               preview: msg.text.slice(0, 72),
+            }
+          : undefined,
+        plan.stickerUrl
+          ? {
+              type: "gif",
+              name: plan.stickerName || "Desi Sticker",
+              url: plan.stickerUrl,
+              mime: "image/svg+xml",
             }
           : undefined
       );
@@ -528,6 +548,10 @@ export default function ChatRoom({
         setGame((cur) => (!e.g ? null : !cur || e.g.v >= cur.v ? e.g : cur));
       } else if (e.t === "presence") {
         setLocalHumans(loadMembers(room).filter((m) => !m.bot));
+      } else if (e.t === "sound") {
+        sounds.playSoundDrop(e.soundId);
+        const found = SOUNDBOARD_ITEMS.find((x) => x.id === e.soundId);
+        notify(`${found?.emoji || "📯"} ${e.by} ने बजाया: ${found?.label || "साउंड ड्रॉप"}!`);
       }
     };
 
@@ -578,8 +602,8 @@ export default function ChatRoom({
         const bot = BOTS[0];
         botSay(
           bot,
-          `Hey ${me.name}! 👋 Room /${room} is live — invite friends with the link up top, type GAME for a squad round, or try /poll & 🔎 Search!`,
-          1200,
+          `अरे राम-राम ${me.name} भाई! 🙏 रूम /${room} एकदम लाइव है — ऊपर वाले 🔗 लिंक से यारों को जोड़ लो, 📯 प्रेशर हॉर्न बजाओ, मीम्स फेंको, या GAME लिखते ही मुकाबला चालू करो! 🔥`,
+          1100,
           1400
         );
       }
@@ -849,6 +873,26 @@ export default function ChatRoom({
     [addMessage, me, persistAndBroadcastUpdate]
   );
 
+  const triggerSoundDrop = useCallback(
+    (soundId: SoundDropId, label?: string, shoutout?: string) => {
+      sounds.playSoundDrop(soundId);
+      emitEvent({ t: "sound", soundId, by: me.name });
+      const item = SOUNDBOARD_ITEMS.find((x) => x.id === soundId);
+      const line = shoutout || item?.shoutout || `📯 ${label || "भौकाल साउंड"}!`;
+      addMessage({
+        id: uid(),
+        kind: "chat",
+        userId: me.id,
+        name: me.name,
+        avatar: me.avatar,
+        ts: Date.now(),
+        text: line,
+      });
+      notify(`${item?.emoji || "📯"} पूरे रूम में '${item?.label || label}' गूँज गया!`);
+    },
+    [addMessage, emitEvent, me, notify]
+  );
+
   const send = useCallback(() => {
     const raw = input.trim();
     if (!raw || gameRef.current) return;
@@ -888,6 +932,12 @@ export default function ChatRoom({
 
     if (raw === "/game") {
       setArcadeOpen(true);
+      return;
+    }
+
+    if (/^\/(horn|chai|dhol|nagin|ipl|ghanti)\b/i.test(raw)) {
+      const soundKey = raw.slice(1).trim().toLowerCase() as SoundDropId;
+      triggerSoundDrop(soundKey);
       return;
     }
 
@@ -944,6 +994,7 @@ export default function ChatRoom({
     maybeBotReply,
     notify,
     persistAndBroadcastUpdate,
+    triggerSoundDrop,
   ]);
 
   const shareCard = useCallback(
@@ -1036,11 +1087,12 @@ export default function ChatRoom({
       maybeBotReply({
         ...outgoing,
         text:
-          att.type === "gif"
-            ? "haha 😂"
+          text ||
+          (att.type === "gif"
+            ? ""
             : att.type === "audio"
             ? "hey check out this note"
-            : "shared a file",
+            : "shared a file"),
       });
     },
     [me, replyingTo, addMessage, maybeBotReply]
@@ -1097,6 +1149,12 @@ export default function ChatRoom({
     } else if (cmd === "/poll") {
       setPollModalOpen(true);
       setInput("");
+    } else if (cmd === "/horn") {
+      setInput("");
+      triggerSoundDrop("horn");
+    } else if (cmd === "/chai") {
+      setInput("");
+      triggerSoundDrop("chai");
     } else {
       setSearchOpen("");
       setInput("");
@@ -1770,14 +1828,29 @@ export default function ChatRoom({
                   {picker === "gif" && (
                     <GifPicker
                       onClose={() => setPicker(null)}
-                      onPick={(id, label) => {
+                      onPick={(urlOrId, label) => {
                         setPicker(null);
+                        const finalUrl =
+                          urlOrId.startsWith("data:") || urlOrId.startsWith("http")
+                            ? urlOrId
+                            : gifUrl(urlOrId);
                         sendAttachment({
                           type: "gif",
                           name: label,
-                          url: gifUrl(id),
-                          mime: "image/gif",
+                          url: finalUrl,
+                          mime: finalUrl.startsWith("data:image/svg")
+                            ? "image/svg+xml"
+                            : "image/gif",
                         });
+                      }}
+                    />
+                  )}
+                  {picker === "sound" && (
+                    <SoundboardPicker
+                      onClose={() => setPicker(null)}
+                      onTrigger={(soundId, label, shoutout) => {
+                        setPicker(null);
+                        triggerSoundDrop(soundId, label, shoutout);
                       }}
                     />
                   )}
@@ -1787,16 +1860,25 @@ export default function ChatRoom({
                     onClick={() =>
                       setPicker(picker === "emoji" ? null : "emoji")
                     }
-                    title="Emoji Picker"
+                    title="Desi & All Emojis"
                   >
                     😀
                   </IconBtn>
                   <IconBtn
                     active={picker === "gif"}
                     onClick={() => setPicker(picker === "gif" ? null : "gif")}
-                    title="GIF Picker"
+                    title="देसी मीम स्टीकर & GIFs"
                   >
-                    <span className="text-[10px] font-black">GIF</span>
+                    <span className="text-[10px] font-black text-amber-300">मीम</span>
+                  </IconBtn>
+                  <IconBtn
+                    active={picker === "sound"}
+                    onClick={() =>
+                      setPicker(picker === "sound" ? null : "sound")
+                    }
+                    title="लाइव देसी साउंडबोर्ड (हॉर्न, ढोल, नागिन, IPL, चाय)"
+                  >
+                    📯
                   </IconBtn>
                   <IconBtn
                     onClick={() => fileRef.current?.click()}
@@ -2076,7 +2158,7 @@ export default function ChatRoom({
           >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-black text-white">
-                🗳️ Create Live Squad Poll
+                🗳️ लाइव ग्रुप पोल / मसाला बहस
               </h2>
               <button
                 onClick={() => setPollModalOpen(false)}
@@ -2085,12 +2167,36 @@ export default function ChatRoom({
                 ✕
               </button>
             </div>
+
+            {/* 1-Tap Desi Masala Poll Presets */}
+            <div className="mb-3">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-amber-300">
+                🔥 1-टैप देसी मसाला सवाल (तुरंत भरें):
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {DESI_QUICK_POLLS.map((preset, pIdx) => (
+                  <button
+                    key={pIdx}
+                    type="button"
+                    onClick={() => {
+                      sounds.playPop();
+                      setPollQuestion(preset.question);
+                      setPollOptions(preset.options);
+                    }}
+                    className="rounded-xl border border-amber-400/30 bg-amber-500/15 px-2.5 py-1 text-left text-[11px] font-bold text-amber-200 transition hover:border-amber-400 hover:bg-amber-500/25"
+                  >
+                    {preset.question.slice(0, 28)}…
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <input
               autoFocus
               value={pollQuestion}
               onChange={(e) => setPollQuestion(e.target.value)}
               maxLength={100}
-              placeholder="Ask the room anything… (e.g. Which game or movie tonight?)"
+              placeholder="ग्रुप से कुछ भी पूछो… (जैसे: आज चाय की पार्टी कौन दे रहा है?)"
               className="mb-3 w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-sm font-semibold text-white outline-none focus:border-violet-400"
             />
             <div className="space-y-2">

@@ -1,59 +1,36 @@
-# ⚡ ChatArena Live — Real-Time Squad Messenger & Multiplayer Arcade
+# ChatAdda Live 🇮🇳 — UP · दिल्ली-NCR Cross-Device Chat & 18-Game Squad Arcade
 
-A real-time cross-device group messenger combined with **15 collaborative & competitive live mini-games**, live interactive room polls, and a collaborative trip/movie/weather/forex search planner — ready for one-click deployment on **Vercel**.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fthehindunew-eng%2FChat-with-Game)
-
----
+**ChatAdda Live** is a real-time, cross-device group messenger and 18-game multiplayer arcade tailored with authentic **Indian, Uttar Pradesh (Noida, Dadri, Ghaziabad, Lucknow, Banaras, Kanpur, Prayagraj, Meerut)**, and **Delhi-NCR** Hinglish humor, memes, soundboard effects, and live collaborative planning.
 
 ## ✨ Highlights
 
-### 💬 Realistic Cross-Device Messenger
-- **Real Multi-Device Cloud Sync (Supabase Realtime + Postgres + Presence)**: Share any room URL (`https://your-app.vercel.app/friday-squad`) across iPhones, Androids, and laptops — messages, live typing indicators, online presence, reactions, polls, and game moves sync in milliseconds.
-- **Messenger UX**:
-  - **Reply Quotes (`↩`)** with one-tap scroll & highlight flash to the original message
-  - **Live Message Editing (`✏️`)** synced across every device
-  - **Read Receipts (`✓` Sent → `✓✓` Seen)** with reader tooltips
-  - **Live Squad Polls (`🗳️` or `/poll Question | Option 1 | Option 2`)** with animated percentage bars
-  - **Studio Portrait Avatars, Photo Upload & Live Camera Selfie** + custom status vibes
-  - **Voice Notes (`🎤`), Speech Dictation (`🗣️`), File Sharing (`📎`) & GIF/Emoji Pickers**
-  - **Smart AI Regulars (`Auto` / `On` / `Off`)**: Lifelike squad teammates keep solo sessions fun and automatically step back as soon as 2+ real humans join the room.
+### 🇮🇳 Full Desi / UP-Delhi Cultural Overhaul
+- **16 Custom Desi Meme Stickers + 50+ GIPHY GIFs (`मीम`)**: Instant crisp SVG stickers inspired by *Mirzapur*, *Panchayat*, *Hera Pheri*, *Welcome*, Noida/Delhi traffic, Mummy's flying chappal, and Tapri Chai — syncing cross-device in `<1 KB` with zero loading lag.
+- **📯 Live Multi-Phone Desi Soundboard**: One tap broadcasts live Web Audio across **every friend's phone & laptop simultaneously** via Supabase Realtime:
+  - 📯 **UP Roadways प्रेशर हॉर्न**
+  - 🥁 **बारात ढोल धमाका**
+  - 🐍 **नागिन बीन डांस**
+  - 🏏 **IPL स्टेडियम सिक्सर**
+  - 🔔 **शुद्ध माहौल आरती घंटी**
+  - ☕ **टपरी अदरक चाय सीटी**
+- **🇮🇳 Desi & UP Adda Emoji Pack**: Searchable in Hinglish (`chai`, `samosa`, `bhaukaal`, `systumm`, `binod`, `jalwa`, `dhol`, `nagin`, `auto`, `paisa`).
+- **4 Smart Solo Squad Regulars**: **Guddu Bhaiya**, **Rohan NCR**, **Ananya**, and **Chintu Jugadu** automatically keep solo rooms lively with authentic UP/Delhi banter, city shoutouts, and meme drops — and step back automatically as soon as real friends join (`Auto` / `On` / `Off`).
+- **🗳️ 1-Tap Desi Masala Polls & Slash Commands**: `/horn`, `/chai`, `/poll`, `/game`, `/trip`, `/train`, `/movie`, `/weather`, `/calc`.
 
-### 🎮 15 Tactile Multiplayer Games (`Type GAME` or tap `🎮 Arcade`)
-1. **🧨 Defuse the Bomb** — Brushed-steel C4 chassis, strike LEDs, realistic curved copper-strand wires & electric snip sparks
-2. **🔴 Connect Four Teams** — Molded royal-blue board with hover preview & spring-gravity disc drops
-3. **⭕ Tic-Tac-Toe Teams** — Neon frosted-glass grid with vector glow & hover preview
-4. **🚀 Starship Emergency Repair** — Engineering bridge telemetry HUD with per-console passcodes & radio broadcast
-5. **⚡ Quantum Reactor Sync** — Spinning magnetic plasma containment rings & harmonic capacitor pads
-6. **🧩 Sliding Puzzle Relay** — Beveled metallic 8-puzzle with click + keyboard arrow support
-7. **🏁 WikiRace Live** — Navigate real Wikipedia hyperlinks from start page to target first
-8. **🕵️ Emoji Cipher Hack**, **🔗 Word Chain Relay**, **🎯 Target Blitz Co-op**, **🧩 Code Breakers**, **📖 Story Relay**
-9. **🎬 Camera Challenges**: *Pass the Controller*, *The NPC Walk*, and *Speedrun Your Desk* with Web Audio synthesized arcade beats
+### 🎮 18 Live Cross-Device Multiplayer Games
+Type **`GAME`** in chat or open **🕹️ देसी पलटन आर्केड** to lock the chat and drop every connected phone & laptop into the same live game:
+1. 🎬 **डायलॉग बाज़ी** *(UP & Filmy Special)* — Complete iconic Mirzapur, Panchayat, Hera Pheri & Welcome lines!
+2. 🥟 **गोलगप्पा vs मोमोज़ ठेला** *(UP vs Delhi Street Battle)* — Serve furious chaat & tandoori momos orders under time pressure!
+3. 🛺 **ऑटो भैया मोल-भाव** *(NCR/Lucknow Meter Duel)* — Haggle down ₹320–₹450 broken-meter quotes without making Auto Bhaiya zoom away!
+4. 💣 **सुतली बम डिफ्यूज़ल** · 5. 🚀 **इसरो जुगाड़ लॉन्च** · 6. ⚡ **बिजली विभाग ट्रांसफार्मर** · 7. 🔮 **इमोजी पहेली कांड**
+8. 🔤 **अंताक्षरी वर्ड चेन** · 9. 🎯 **फटाफट उंगली तोड़** · 10. 🔐 **तिजोरी तोड़ कोड** · 11. 📖 **टपरी गपशप कहानी**
+12. ❌ **जीरो-काटा भौकाल** · 13. 🔴 **चार गोटी लाइन** · 14. 🧩 **जुगाड़ टाइल पहेली** · 15. 🌐 **विकिपीडिया दौड़ (India Edition)**
+16. 🕹️ **ह्यूमन कंट्रोलर** · 17. 🤖 **मोहल्ला NPC लाइव** · 18. 🎒 **जुगाड़ झोला शोडाउन**
 
----
-
-## 🚀 Deploying to Vercel
-
-This repository is pre-configured with `vercel.json` (Vite static asset caching, `/api/*` serverless routing, and clean `/<room-slug>` SPA rewrites).
-
-1. Push this repository to GitHub and import **`thehindunew-eng/Chat-with-Game`** in **[vercel.com/new](https://vercel.com/new)**.
-2. Framework Preset is automatically detected as **Vite** (`npm run build` → `dist`).
-3. *(Optional — a live Supabase cloud instance with Row Level Security is already pre-wired)*: To use your own Supabase project, run `supabase/migrations/20261022_init_chatarena.sql` in the Supabase SQL Editor and add in **Vercel → Settings → Environment Variables**:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Click **Deploy** — open `https://<your-vercel-domain>/friday-squad` on two devices and type **`GAME`**!
-
----
-
-## 🛠️ Local Development
+## 🚀 Run Locally & Deploy to Vercel
 
 ```bash
 npm install
-npm run dev
-```
-
-Production typecheck & build verification:
-
-```bash
-npm run build
+npm run dev      # http://localhost:5173
+npm run build    # Production bundle + /api/health serverless function
 ```
