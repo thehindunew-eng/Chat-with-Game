@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: radial-gradient(ellipse at top, #0f172a 0%, #020617 70%);
+  color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom sleek scrollbar */
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 9999px;
+}
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
+
+/* Typing dots */
+@keyframes typingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+.typing-dot {
+  animation: typingBounce 1.05s infinite ease-in-out;
+}
+
+/* Tactile message bubble arrival */
+@keyframes msgArrive {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.msg-arrive {
+  animation: msgArrive 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Highlight flash when clicking a reply quote */
+@keyframes replyFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.7);
+    background-color: rgba(139, 92, 246, 0.24);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(167, 139, 250, 0);
+    background-color: transparent;
+  }
+}
+.reply-flash {
+  animation: replyFlash 1.3s ease-out;
+  border-radius: 1rem;
+}
+
+/* +1 pop on target hit */
+@keyframes popFade {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -150%) scale(1.45);
+    opacity: 0;
+  }
+}
+.pop-fade {
+  animation: popFade 0.65s ease-out forwards;
+}
+
+/* Connect-4 realistic gravity disc drop */
+@keyframes discDrop {
+  0% {
+    transform: translateY(-220%) scale(0.94);
+    opacity: 0.7;
+  }
+  72% {
+    transform: translateY(0%) scale(1);
+    opacity: 1;
+  }
+  86% {
+    transform: translateY(-10%);
+  }
+  100% {
+    transform: translateY(0%);
+  }
+}
+.disc-drop {
+  animation: discDrop 0.38s cubic-bezier(0.34, 1.25, 0.64, 1) forwards;
+}
+
+/* Electric spark burst on bomb wire snip */
+@keyframes sparkBurst {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.1);
+    opacity: 0;
+  }
+}
+.spark-burst {
+  animation: sparkBurst 0.55s ease-out forwards;
+}
+
+/* Hazard diagonal caution stripe pattern */
+.hazard-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(245, 158, 11, 0.22) 0px,
+    rgba(245, 158, 11, 0.22) 8px,
+    rgba(15, 23, 42, 0.9) 8px,
+    rgba(15, 23, 42, 0.9) 16px
+  );
+}
+
+/* Wrong cut / error chassis shake */
+@keyframes shakeX {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+.shake {
+  animation: shakeX 0.42s ease;
+}
+
+/* Reactor plasma ring spin */
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin-slow {
+  animation: spinSlow 9s linear infinite;
+}
+.spin-reverse {
+  animation: spinSlow 6s linear infinite reverse;
+}
+
+/* Celebration confetti */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-40px) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(240px) rotate(340deg);
+    opacity: 0;
+  }
+}
+.confetti {
+  top: 0;
+  animation: confettiFall 1.6s ease-in forwards;
+}
+
+/* Camera challenges */
+.mirror {
+  transform: scaleX(-1);
+}
+@keyframes npcScan {
+  0% {
+    opacity: 0.25;
+    transform: translateY(-2px);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 0.25;
+    transform: translateY(-2px);
+  }
+}
+.npc-scan {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 5px,
+    rgba(34, 211, 238, 0.08) 6px 7px
+  );
+  animation: npcScan 0.35s steps(2) infinite;
+}
