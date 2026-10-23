@@ -5,7 +5,6 @@ import { WIKI_ROUTES, buildSolvableSlide, emptyConnect4 } from "./classic";
 const KEY = (room: string) => "chatarena_game_" + room;
 const volatileGames = new Map<string, LiveGame>();
 
-/* ---------- seeded RNG ---------- */
 export function mulberry32(a: number) {
   return () => {
     a |= 0;
@@ -38,11 +37,10 @@ export function writeGame(room: string, g: LiveGame | null) {
   try {
     localStorage.setItem(KEY(room), JSON.stringify(g));
   } catch {
-    // Keep session game live in memory even if video data exceeds quota
+    /* keep session state live in memory */
   }
 }
 
-/** Read-modify-write so every tab mutates the same authoritative state. */
 export function mutateGame(
   room: string,
   fn: (g: LiveGame) => LiveGame | null
@@ -67,222 +65,154 @@ export const feed = (g: LiveGame, line: FeedLine): LiveGame => ({
 export const currentPlayer = (g: LiveGame): GamePlayer | undefined =>
   g.players.length ? g.players[g.turn % g.players.length] : undefined;
 
-export const isMyTurn = (g: LiveGame, uid: string) => currentPlayer(g)?.uid === uid;
+export const isMyTurn = (g: LiveGame, uid: string) =>
+  currentPlayer(g)?.uid === uid;
 
 export const bumpScore = (g: LiveGame, uid: string, n: number): LiveGame => ({
   ...g,
-  players: g.players.map((p) => (p.uid === uid ? { ...p, score: p.score + n } : p)),
+  players: g.players.map((p) =>
+    p.uid === uid ? { ...p, score: p.score + n } : p
+  ),
 });
 
 export function joinGame(room: string, p: GamePlayer): LiveGame | null {
   return mutateGame(room, (g) => {
     if (g.phase === "done" || g.players.some((x) => x.uid === p.uid)) return g;
-    return feed({ ...g, players: [...g.players, p] }, {
-      name: "",
-      text: `🚀 ${p.name} पलटन में शामिल हो गए!`,
-      ts: Date.now(),
-      sys: true,
-    });
+    return feed(
+      { ...g, players: [...g.players, p] },
+      {
+        name: "",
+        text: `${p.name} joined the match`,
+        ts: Date.now(),
+        sys: true,
+      }
+    );
   });
 }
 
-/* ---------- NEW UP/DELHI SPECIAL 1: Filmy / Mirzapur / Panchayat Dialogue Baazi ---------- */
-export interface DialogueQuestion {
-  quote: string;
-  options: string[];
-  answer: number;
-  vibe: string;
-}
-
-export const DIALOGUE_BANK: DialogueQuestion[] = [
-  {
-    quote: "“देख रहा है बिनोद... कैसे _____ घुमाया जा रहा है!”",
-    options: ["चक्का", "मुद्दा", "पंखा", "समोसा"],
-    answer: 1,
-    vibe: "पंचायत · फुलेरा गाँव स्पेशल 🫖",
-  },
-  {
-    quote: "“मज़ाक नहीं कर रहे हैं... _____ है हमारा यहाँ!”",
-    options: ["दुकान", "जलवा", "किराया", "राशन"],
-    answer: 1,
-    vibe: "मिर्ज़ापुर भौकाल सीरीज़ 👑",
-  },
-  {
-    quote: "“कंट्रोल उदय, कंट्रोल! इमोशंस को _____ में रख!”",
-    options: ["जेब", "कंट्रोल", "फ्रिज", "बैंक"],
-    answer: 1,
-    vibe: "वेलकम · मजनू + उदय भाई 🎨",
-  },
-  {
-    quote: "“ये बाबूराव का _____ है रे बाबा!”",
-    options: ["चश्मा", "स्टाइल", "धोती", "गैराज"],
-    answer: 1,
-    vibe: "हेरा फेरी क्लासिक 🕶️",
-  },
-  {
-    quote: "“ग़ज़ब _____ है यार! चाय-बिस्कुट तक नहीं पूछ रहे!”",
-    options: ["बेइज़्ज़ती", "मेहमाननवाज़ी", "कंजूसियत", "राजनीति"],
-    answer: 0,
-    vibe: "पंचायत · दामाद जी स्पेशल 🛋️",
-  },
-  {
-    quote: "“अरे डेढ़ सौ रुपया देगा!! ... पर पहले _____ निकाल!”",
-    options: ["आधार कार्ड", "माल", "रसीद", "चप्पल"],
-    answer: 1,
-    vibe: "फिर हेरा फेरी · कचरा सेठ 💸",
-  },
-  {
-    quote: "“मुस्कुराइए जनाब, आप _____ में हैं!”",
-    options: ["नोएडा ट्रैफिक", "लखनऊ", "मेट्रो लाइन", "थाने"],
-    answer: 1,
-    vibe: "नवाबों का शहर लखनऊ 🕌",
-  },
-  {
-    quote: "“रिस्क है तो _____ है लाला!”",
-    options: ["इश्क़", "डिस्को", "चाय-पानी", "चालान"],
-    answer: 0,
-    vibe: "स्कैम 1992 आइकॉनिक 🔥",
-  },
-];
-
-function buildDialogue(seed: number) {
+/* ---------- PRO MODE 1: Flick Aim Lab (`aimlab`) ---------- */
+function buildAimLab(seed: number) {
   const rnd = mulberry32(seed + 515);
-  const questions = [...DIALOGUE_BANK]
-    .sort(() => rnd() - 0.5)
-    .slice(0, 5);
   return {
-    qIdx: 0,
-    score: 0,
-    streak: 0,
-    questions,
-    votes: {} as Record<string, number>,
-    revealed: false,
-    lastCorrect: null as boolean | null,
+    targetCell: Math.floor(rnd() * 16),
+    bonusCell: (Math.floor(rnd() * 16) + 5) % 16,
+    hits: 0,
+    misses: 0,
+    quota: 16,
+    combo: 0,
+    bestMs: null as number | null,
+    totalMs: 0,
+    spawnedAt: Date.now(),
+    lastShotBy: "",
+    lastMs: null as number | null,
   };
 }
 
-/* ---------- NEW UP/DELHI SPECIAL 2: Golgappa vs Momos Street Counter ---------- */
-function buildGolgappa(seed: number) {
-  const rnd = mulberry32(seed + 616);
-  const customers = [
-    "गुड्डू भैया (मिर्ज़ापुर) 👑",
-    "रोहन नोएडा Sector-18 🔥",
-    "अनन्या (लखनऊ) ✨",
-    "चिंटू कनपुरिया 😎",
-    "शर्मा अंकल जी 🧐",
-    "दादरी GT रोड गैंग 🚙",
-  ];
-  const spices = ["खट्टा-मीठा सोंठ 🍯", "चटपटा पुदीना मसाला 🌿", "कट्टई ज़हर लाल मिर्ची 🌶️🔥"];
-  const orders = Array.from({ length: 8 }, (_, idx) => ({
-    customer: customers[Math.floor(rnd() * customers.length)],
-    item: (idx % 2 === 0 ? (rnd() < 0.65 ? "golgappa" : "momos") : rnd() < 0.65 ? "momos" : "golgappa") as
-      | "golgappa"
-      | "momos",
-    spice: spices[Math.floor(rnd() * spices.length)],
-  }));
+/* ---------- PRO MODE 2: Sector Recall (`sector`) ---------- */
+export function generateSectorPattern(seed: number, wave: number): number[] {
+  const rnd = mulberry32(seed + wave * 977);
+  const count = Math.min(7, 3 + wave); // Wave 1: 4 tiles, Wave 2: 5, Wave 3: 6, Wave 4: 7
+  const pool = Array.from({ length: 16 }, (_, i) => i);
+  const picked: number[] = [];
+  while (picked.length < count) {
+    const idx = Math.floor(rnd() * pool.length);
+    picked.push(pool.splice(idx, 1)[0]);
+  }
+  return picked;
+}
+
+function buildSectorRecall(seed: number) {
   return {
-    orderIdx: 0,
-    totalOrders: 8,
-    orders,
-    golgappaScore: 0,
-    momosScore: 0,
-    served: 0,
-    spicyCombo: 0,
-    lastServedBy: "",
+    wave: 1,
+    maxWaves: 4,
+    pattern: generateSectorPattern(seed, 1),
+    cleared: [] as number[],
+    wrongCell: null as number | null,
+    lives: 3,
+    revealUntil: Date.now() + 1800,
   };
 }
 
-/* ---------- NEW UP/DELHI SPECIAL 3: Auto Bhaiya Meter Bargain Duel ---------- */
-const BARGAIN_SCENARIOS = [
-  {
-    route: "राजीव चौक (CP) से हौज़ खास 🛺",
-    distance: "11.5 km",
-    initialAsk: 320,
-    fairFare: 120,
-    driverName: "पप्पू उस्ताद (DL-1R)",
-    openingLine: "बाबूजी मीटर कल ही खराब हुआ है, सीधा ₹320 लगेंगे — आश्रम-एम्स पे भयंकर जाम है!",
-  },
-  {
-    route: "नोएडा Sector-18 से परी चौक 🛺",
-    distance: "24 km",
-    initialAsk: 450,
-    fairFare: 160,
-    driverName: "बबलू भैया (UP-16)",
-    openingLine: "भैया एक्सप्रेसवे घूम के जाना पड़ेगा, खाली ऑटो वापस आएगा — ₹450 से एक रुपया कम नहीं!",
-  },
-  {
-    route: "चारबाग स्टेशन से हज़रतगंज 🛺",
-    distance: "5.2 km",
-    initialAsk: 220,
-    fairFare: 80,
-    driverName: "शर्मा जी (UP-32)",
-    openingLine: "अरे नवाब साहब शाम का टाइम है, ₹220 दे दीजिए सीधा गेट के अंदर उतारेंगे!",
-  },
-  {
-    route: "कैंट स्टेशन से अस्सी घाट बनारस 🛺",
-    distance: "6.8 km",
-    initialAsk: 260,
-    fairFare: 90,
-    driverName: "गुरुजी (UP-65)",
-    openingLine: "गुरु गोदौलिया में बैरिकेडिंग लगी है, घूम के चलेंगे ₹260 निकालो प्रेम से!",
-  },
-];
-
-function buildBargain(seed: number) {
+/* ---------- PRO MODE 3: Strike · Guard · Feint (`duel`) ---------- */
+function buildTacticalDuel(seed: number) {
   const rnd = mulberry32(seed + 818);
-  const s = BARGAIN_SCENARIOS[Math.floor(rnd() * BARGAIN_SCENARIOS.length)];
+  const rivals = [
+    { name: "APEX // GRANDMASTER", style: "Aggressive Striker" },
+    { name: "VALKYRIE // DIAMOND", style: "Counter-Parry Specialist" },
+    { name: "KOVA // TACTICIAN", style: "Feint Mindgame" },
+  ];
+  const rival = rivals[Math.floor(rnd() * rivals.length)];
   return {
-    ...s,
-    currentAsk: s.initialAsk,
-    meterPatience: 100,
-    turnsLeft: 5,
-    log: [{ speaker: "driver", text: s.openingLine }],
+    rivalName: rival.name,
+    rivalStyle: rival.style,
+    playerHp: 100,
+    rivalHp: 100,
+    round: 1,
+    streak: 0,
+    log: [
+      {
+        tag: "SYSTEM",
+        text: `Match live vs ${rival.name}. STRIKE beats FEINT · FEINT breaks GUARD · GUARD parries STRIKE.`,
+      },
+    ],
   };
 }
 
-/* ---------- 1. Defuse the Bomb builder ---------- */
+/* ---------- Co-op & Classic Builders ---------- */
 const WIRE_COLORS = [
-  { color: "red", hex: "#ef4444", emoji: "🟥" },
-  { color: "blue", hex: "#3b82f6", emoji: "🟦" },
-  { color: "green", hex: "#22c55e", emoji: "🟩" },
+  { color: "red", hex: "#dc2626", emoji: "🟥" },
+  { color: "blue", hex: "#2563eb", emoji: "🟦" },
+  { color: "green", hex: "#16a34a", emoji: "🟩" },
   { color: "yellow", hex: "#eab308", emoji: "🟨" },
-  { color: "purple", hex: "#a855f7", emoji: "🟪" },
-  { color: "white", hex: "#e2e8f0", emoji: "⬜" },
+  { color: "purple", hex: "#7c3aed", emoji: "🟪" },
+  { color: "white", hex: "#e4e4e7", emoji: "⬜" },
 ];
 
 function buildBomb(seed: number) {
   const rnd = mulberry32(seed);
-  const wires = Array.from({ length: 5 }, () => WIRE_COLORS[Math.floor(rnd() * WIRE_COLORS.length)]);
+  const wires = Array.from(
+    { length: 5 },
+    () => WIRE_COLORS[Math.floor(rnd() * WIRE_COLORS.length)]
+  );
   const correct = Math.floor(rnd() * wires.length);
   const c = wires[correct];
   const sameColorCount = wires.filter((w) => w.color === c.color).length;
   const clues: string[] = [];
 
   clues.push(
-    `सही तार का रंग **${c.color.toUpperCase()}** है${
-      sameColorCount > 1 ? ` (बम पर कुल ${sameColorCount} ${c.color} तार हैं)` : ""
-    }!`
+    `Target wire color is **${c.color.toUpperCase()}**${
+      sameColorCount > 1 ? ` (${sameColorCount} ${c.color} leads present)` : ""
+    }.`
   );
-  clues.push(`सही तार बाएँ से **${correct + 1 <= 3 ? "1 से 3" : "3 से 5"}** नंबर के बीच में है।`);
-  clues.push(`सही तार का नंबर **${(correct + 1) % 2 === 0 ? "सम (EVEN: 2 या 4)" : "विषम (ODD: 1, 3 या 5)"}** है।`);
+  clues.push(
+    `Safe lead is in slot **${correct + 1 <= 3 ? "1–3" : "3–5"}** from left.`
+  );
+  clues.push(
+    `Slot index is **${(correct + 1) % 2 === 0 ? "EVEN (2 or 4)" : "ODD (1, 3, or 5)"}**.`
+  );
   const notIdx = (correct + 1 + Math.floor(rnd() * 3)) % wires.length;
-  if (notIdx !== correct)
-    clues.push(`खबरदार! तार **#${notIdx + 1} (${wires[notIdx].color})** बिल्कुल मत काटना — सीधा धमाका होगा! 💥`);
+  if (notIdx !== correct) {
+    clues.push(
+      `Do **NOT** cut slot **#${notIdx + 1} (${wires[notIdx].color})** — live trigger.`
+    );
+  }
   const neighbour = correct === 0 ? 1 : correct - 1;
   clues.push(
-    `सही तार पोजीशन #${neighbour + 1} (${wires[neighbour].color}) के **${
-      correct === 0 ? "बाएँ (LEFT)" : "दाएँ (RIGHT)"
-    }** में लगा है।`
+    `Target sits **${
+      correct === 0 ? "LEFT of" : "RIGHT of"
+    }** slot #${neighbour + 1} (${wires[neighbour].color}).`
   );
 
   return { wires, correct, clues, cut: [] as number[], strikes: 0 };
 }
 
-/* ---------- 2. ISRO Jugad Launch builder ---------- */
 function buildAstro(seed: number, n: number) {
   void seed;
-  const systems = ASTRO_SYSTEMS.slice(0, Math.min(ASTRO_SYSTEMS.length, Math.max(3, n + 1)));
-  const passcodes = ["JUGAAD-1", "CHAND-3", "GAGAN-9", "VIKRAM-7", "ISRO-108"];
+  const systems = ASTRO_SYSTEMS.slice(
+    0,
+    Math.min(ASTRO_SYSTEMS.length, Math.max(3, n + 1))
+  );
+  const passcodes = ["ALPHA-9", "SIGMA-4", "VECTOR-7", "DELTA-2", "OMEGA-5"];
   const modules = systems.map((s, idx) => ({
     id: idx,
     name: s.name,
@@ -295,11 +225,12 @@ function buildAstro(seed: number, n: number) {
   return { modules, integrity: 100 };
 }
 
-/* ---------- 3. Bijli Vibhag Transformer builder ---------- */
 function buildReactor(seed: number, n: number) {
   const rnd = mulberry32(seed + 202);
   const targetEnergy = Math.max(16, 8 * Math.max(1, n));
-  const sequence = Array.from({ length: 4 }, () => Math.floor(rnd() * REACTOR_FREQUENCIES.length));
+  const sequence = Array.from({ length: 4 }, () =>
+    Math.floor(rnd() * REACTOR_FREQUENCIES.length)
+  );
   return {
     energy: 0,
     targetEnergy,
@@ -310,14 +241,15 @@ function buildReactor(seed: number, n: number) {
   };
 }
 
-/* ---------- 4. Emoji Cipher builder ---------- */
 function buildCipher(seed: number) {
   const rnd = mulberry32(seed + 303);
   const selected = CIPHER_PHRASES[Math.floor(rnd() * CIPHER_PHRASES.length)];
   const words = selected.phrase.split(" ");
   const runes = selected.runes.split(" ");
 
-  const uniqueLetters = [...new Set(selected.phrase.replace(/\s+/g, "").split(""))];
+  const uniqueLetters = [
+    ...new Set(selected.phrase.replace(/\s+/g, "").split("")),
+  ];
   const cipherMap: Record<string, string> = {};
   uniqueLetters.forEach((l, idx) => {
     cipherMap[l] = runes[idx % runes.length] + (idx >= runes.length ? idx + 1 : "");
@@ -332,12 +264,13 @@ function buildCipher(seed: number) {
   };
 }
 
-/* ---------- 5. Tijori Code Breakers builder ---------- */
-export const CODE_SYMBOLS = ["🫖", "🥟", "👑", "🏏", "🛺", "🪔"];
+export const CODE_SYMBOLS = ["◆", "▲", "●", "★", "■", "✦"];
 
 function buildCode(seed: number) {
   const rnd = mulberry32(seed + 31);
-  const code = Array.from({ length: 4 }, () => Math.floor(rnd() * CODE_SYMBOLS.length));
+  const code = Array.from({ length: 4 }, () =>
+    Math.floor(rnd() * CODE_SYMBOLS.length)
+  );
   return {
     code,
     guesses: [] as { by: string; guess: number[]; exact: number; partial: number }[],
@@ -345,13 +278,11 @@ function buildCode(seed: number) {
   };
 }
 
-/* ---------- 6. Tapri Gossip Story Relay builder ---------- */
 const STORY_PROMPTS = [
-  "रात 1:30 बजे नोएडा हाईवे के ढाबे पर हम पराठे खा रहे थे, तभी एक काली थार रुकी और…",
-  "गोवा ट्रिप के लिए सबने बैग पैक कर लिए थे, तभी चिंटू की मम्मी ने ग्रुप चैट पढ़ ली और…",
-  "बनारस घाट पर चाय पीते वक़्त छोटू ने हमारे हाथ में एक रहस्यमयी चाबी थमाई और बोला…",
-  "बारात में नागिन डांस चरम पर था, तभी डीजे वाले बाबू ने गलती से माइक ऑन छोड़ दिया और…",
-  "राजीव चौक मेट्रो में धक्के के बीच हमारा बैग किसी गुप्त एजेंट के सूटकेस से बदल गया…",
+  "Final map, 14–14 overtime, one player left alive with 4 seconds on the clock…",
+  "The tournament server glitched mid-finals and teleported both teams into…",
+  "Nobody noticed the secret door behind the spawn room until round five…",
+  "With zero resources left, the squad gambled everything on a wild strat…",
 ];
 
 function buildVideo(id: "controller" | "npc" | "desk", n: number) {
@@ -372,7 +303,6 @@ function buildVideo(id: "controller" | "npc" | "desk", n: number) {
   };
 }
 
-/* ---------- Master 18-Game Factory ---------- */
 export function createGame(
   id: GameId,
   seed: number,
@@ -397,12 +327,12 @@ export function createGame(
   const rnd = mulberry32(seed);
 
   switch (id) {
-    case "dialogue":
-      return { ...base, endsAt: now + 95000, data: buildDialogue(seed) };
-    case "golgappa":
-      return { ...base, endsAt: now + 75000, data: buildGolgappa(seed) };
-    case "bargain":
-      return { ...base, endsAt: now + 90000, data: buildBargain(seed) };
+    case "aimlab":
+      return { ...base, endsAt: now + 60000, data: buildAimLab(seed) };
+    case "sector":
+      return { ...base, endsAt: now + 75000, data: buildSectorRecall(seed) };
+    case "duel":
+      return { ...base, endsAt: now + 90000, data: buildTacticalDuel(seed) };
     case "bomb":
       return { ...base, endsAt: now + 75000, data: buildBomb(seed) };
     case "astro":
@@ -464,7 +394,10 @@ export function createGame(
         endsAt: now + 180000,
         data: {
           ...route,
-          routes: {} as Record<string, { path: string[]; clicks: number; finishedAt?: number }>,
+          routes: {} as Record<
+            string,
+            { path: string[]; clicks: number; finishedAt?: number }
+          >,
         },
       };
     }
@@ -489,38 +422,37 @@ export const playersFromMembers = (
       avatar: m.avatar,
       score: 0,
       bot: m.bot,
-      role: ["कप्तान 👑", "जुगाड़ इंजीनियर 🔧", "उस्ताद 🧭", "खिलाड़ी ⚡", "पायलट 🚀"][idx % 5],
+      role: ["IGL", "Entry", "Tactician", "Support", "Flex"][idx % 5],
     }));
 
-/* ---------- Bot Solvers & Desi Vocab ---------- */
 export const BOT_WORDS = [
-  "adrak", "adda", "agra", "auto", "banaras", "baraat", "biryani", "bhaukaal",
-  "chai", "chaat", "chole", "cricket", "dadri", "delhi", "dhol", "dosti",
-  "elichi", "film", "gajak", "ganga", "ghat", "golgappa", "guru", "halwa",
-  "india", "ipl", "jalebi", "jalwa", "jugaad", "kachori", "kanpur", "kulhad",
-  "lassi", "lucknow", "maggi", "masala", "mathura", "meerut", "metro", "momos",
-  "namaste", "nawab", "noida", "pakora", "paneer", "paratha", "party", "rabri",
-  "riksaw", "rohit", "samosa", "sangam", "shai", "sixer", "sweet", "tapri",
-  "tandoor", "thar", "tikka", "train", "varanasi", "virat", "yaari", "zahar",
-  "apple", "eagle", "engine", "orange", "orbit", "river", "tiger", "ultra",
-  "winner", "yellow", "zebra", "energy", "island", "ocean", "planet", "rocket",
+  "anchor", "arrow", "arena", "armor", "blitz", "blade", "breach", "combo",
+  "clutch", "cipher", "combo", "crown", "delta", "draft", "duel", "eagle",
+  "ember", "enigma", "entry", "flank", "flick", "focus", "frost", "gambit",
+  "guard", "havoc", "hyper", "index", "karma", "laser", "lobby", "logic",
+  "match", "medal", "metro", "nexus", "nitro", "omega", "orbit", "parry",
+  "phase", "pixel", "point", "pulse", "quest", "queue", "radar", "range",
+  "recon", "relay", "reset", "rival", "round", "scope", "score", "shift",
+  "sigma", "skill", "slide", "snipe", "spark", "speed", "squad", "stack",
+  "storm", "surge", "swift", "titan", "token", "tower", "ultra", "vault",
+  "vector", "viper", "vortex", "watch", "xenon", "yield", "zenith", "zone",
 ];
 
 export function botWordFor(letter: string, used: string[]): string | null {
   const pool = BOT_WORDS.filter(
-    (w) => w[0].toLowerCase() === letter.toLowerCase() && !used.includes(w.toLowerCase())
+    (w) =>
+      w[0].toLowerCase() === letter.toLowerCase() &&
+      !used.includes(w.toLowerCase())
   );
   if (!pool.length) return null;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
 export const BOT_STORY_BITS = [
-  "तभी पीछे से गुड्डू भैया चिल्लाए — 'अबे रुको ज़रा, सब्र करो!'",
-  "और चाय वाले छोटू ने चुपचाप हमारे हाथ में एक सीक्रेट नक्शा थमा दिया!",
-  "देखते ही देखते पूरे मोहल्ले की भीड़ तमाशा देखने जमा हो गई!",
-  "तभी किसी ने ट्रक वाला प्रेशर हॉर्न बजा दिया और सब उछल पड़े!",
-  "और आखिर में पता चला कि ये सब समोसा पार्टी बचाने की गहरी साज़िश थी!",
-  "जिसके बाद पूरी पलटन ने कुल्हड़ चाय पीकर जीत का जश्न मनाया!",
+  "then the entry fragger hit an impossible flick shot through smoke",
+  "forcing a sudden tiebreaker with zero utility left on the board",
+  "until our IGL called a fake rotate that caught the entire defense off guard",
+  "sealing the championship trophy as the timer hit 0.1 seconds",
 ];
 
 export function scoreGuess(code: number[], guess: number[]) {

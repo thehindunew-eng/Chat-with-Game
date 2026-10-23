@@ -5,2858 +5,1917 @@ import type {
   BusEvent,
   GameId,
   LiveGame,
+  MatchResultCard,
   Member,
   Message,
-  ReplyPreview,
   SearchCard,
   SquadPoll,
   SyncStatus,
   User,
 } from "../lib/types";
 import { GAME_META, uid } from "../lib/types";
+import { BOTS, BOT_IDLE } from "../lib/data";
+import { DESI_QUICK_POLLS } from "../lib/desiStickers";
+import { generateContextualBotReply } from "../lib/botBrain";
+import { RoomSyncClient } from "../lib/realtime";
+import { createGame, joinGame, readGame, writeGame } from "../lib/gameSync";
 import {
-  cleanText,
   claimLeadership,
-  displayHost,
+  cleanText,
   getBotMode,
-  getProfanityFilter,
   getRetentionDays,
-  isOnline,
-  loadMembers,
   loadMessages,
-  normalizeRoomSlug,
-  RETENTION_OPTIONS,
   roomLink,
-  saveMembers,
   saveMessages,
   setBotMode,
-  setProfanityFilter,
-  setRetentionDays,
 } from "../lib/store";
 import {
-  createGame,
-  joinGame,
-  mutateGame,
-  playersFromMembers,
-  readGame,
-  writeGame,
-} from "../lib/gameSync";
-import {
-  AVATAR_SEEDS,
-  BOTS,
-  BOT_GAME_CHEER,
-  BOT_IDLE,
-  gifUrl,
-  makeAvatar,
-  STATUS_PRESETS,
-} from "../lib/data";
-import {
-  generateBotCardReaction,
-  generateContextualBotReply,
-} from "../lib/botBrain";
-import { RoomSyncClient } from "../lib/realtime";
-import { looksLikeQuestion } from "../lib/search";
-import { summarize, type Summary } from "../lib/summarize";
-import { EmojiPicker, GifPicker, SoundboardPicker } from "./Pickers";
+  getRankTier,
+  loadPlayerStats,
+  recordMatchResult,
+  type PlayerStats,
+} from "../lib/ranks";
+import { sounds } from "../lib/audio";
+import GameLibrary from "./GameLibrary";
 import GameOverlay from "./GameOverlay";
 import SearchConsole from "./SearchConsole";
 import SearchCardView from "./SearchCardView";
-import GameLibrary from "./GameLibrary";
-import { sounds, type SoundDropId } from "../lib/audio";
-import { DESI_QUICK_POLLS, SOUNDBOARD_ITEMS } from "../lib/desiStickers";
+import { EmojiPicker, GifPicker, SoundboardPicker } from "./Pickers";
 
-const GAME_IDS: GameId[] = [
-  "dialogue",
-  "golgappa",
-  "bargain",
-  "bomb",
-  "astro",
-  "reactor",
-  "cipher",
-  "chain",
-  "blitz",
-  "codebreak",
-  "story",
-  "tictactoe",
-  "connect4",
-  "slide",
-  "wikirace",
-];
-const HUMAN_ONLY_GAMES: GameId[] = [
-  "slide",
-  "wikirace",
-  "controller",
-  "npc",
-  "desk",
-];
-const REACTIONS = ["🙏", "🔥", "🤣", "❤️", "👑", "☕", "💀", "🚀"];
-
-const SLASH_COMMANDS = [
-  {
-    cmd: "/game",
-    label: "देसी पलटन आर्केड (18 गेम्स)",
-    icon: "🎮",
-    desc: "डायलॉग बाज़ी, गोलगप्पा चैलेंज, ऑटो मोल-भाव + 15 लाइव गेम्स!",
-  },
-  {
-    cmd: "/poll",
-    label: "लाइव ग्रुप पोल / मसाला बहस",
-    icon: "🗳️",
-    desc: "1-टैप देसी पोल या खुद का सवाल डालो लाइव वोटिंग के साथ",
-  },
-  {
-    cmd: "/horn",
-    label: "UP प्रेशर हॉर्न बजाओ! 📯",
-    icon: "📯",
-    desc: "ग्रुप के सारे फोन्स पर एक साथ ज़ोरदार हॉर्न साउंड बजाओ!",
-  },
-  {
-    cmd: "/chai",
-    label: "टपरी अदरक चाय + समोसा ऑर्डर",
-    icon: "☕",
-    desc: "पूरे अड्डे के लिए गरमा-गरम कुल्हड़ चाय सीटी के साथ मँगाओ!",
-  },
-  {
-    cmd: "/trip",
-    label: "ट्रिप प्लानर (ऋषिकेश / गोवा / मनाली)",
-    icon: "🧭",
-    desc: "पूरा दिन-वार प्लान, लाइव मौसम और प्रति व्यक्ति खर्च हिसाब",
-  },
-  {
-    cmd: "/train",
-    label: "ट्रेन सर्च (IRCTC / Vande Bharat)",
-    icon: "🚆",
-    desc: "दिल्ली, लखनऊ, बनारस, कानपुर लाइव ट्रेन रूट व बुकिंग",
-  },
-  {
-    cmd: "/flight",
-    label: "सस्ती फ्लाइट्स देखें",
-    icon: "✈️",
-    desc: "किराया और टाइमिंग की तुरंत तुलना करें",
-  },
-  {
-    cmd: "/movie",
-    label: "मूवी शो-टाइम & टिकट",
-    icon: "🎬",
-    desc: "PVR / BookMyShow शो और ट्रेलर कार्ड ग्रुप में शेयर करें",
-  },
-  {
-    cmd: "/weather",
-    label: "लाइव मौसम का हाल",
-    icon: "🌦",
-    desc: "अभी का तापमान और अगले 5 दिन का मौसम",
-  },
-  {
-    cmd: "/food",
-    label: "चाट, ढाबा & रेस्टोरेंट खोजें",
-    icon: "🥟",
-    desc: "आस-पास के बढ़िया खाने के ठिकाने ढूँढें",
-  },
-  {
-    cmd: "/calc",
-    label: "पार्टी बिल स्प्लिट & करेंसी हिसाब",
-    icon: "💸",
-    desc: "दोस्तों में खर्च बराबर बाँटें बिना उधार की चिकचिक के",
-  },
-];
-
-const PLACEHOLDERS = [
-  "अड्डे पे कुछ लिखो भाई… ('GAME' लिखते ही लाइव मुकाबला चालू! 🔥)",
-  "'/' लिखो — /horn, /chai, /poll, /trip, /train सब हाज़िर है! 😎",
-  "🔥 मीम बटन दबाओ — मिर्ज़ापुर, पंचायत और हेरा फेरी स्टीकर भेजो!",
-  "📯 हॉर्न बटन से पूरे ग्रुप के फोन पर लाइव ढोल/हॉर्न बजाओ!",
-];
-
-const fmtTime = (ts: number) =>
-  new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-const fmtDay = (ts: number) => {
-  const d = new Date(ts),
-    today = new Date();
-  if (d.toDateString() === today.toDateString()) return "Today";
-  const y = new Date(today);
-  y.setDate(y.getDate() - 1);
-  if (d.toDateString() === y.toDateString()) return "Yesterday";
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
-};
-
-function mergeMessages(existing: Message[], incoming: Message[]): Message[] {
-  const byId = new Map<string, Message>();
-  for (const m of existing) byId.set(m.id, m);
-  for (const m of incoming) {
-    const prev = byId.get(m.id);
-    if (!prev) {
-      byId.set(m.id, m);
-    } else {
-      // Preserve ephemeral local blob URL if cloud stripped oversized attachment
-      const mergedAttachment =
-        m.attachment?.ephemeral && prev.attachment?.url
-          ? prev.attachment
-          : m.attachment || prev.attachment;
-      const mergedSeen = Array.from(
-        new Set([...(prev.seenBy || []), ...(m.seenBy || [])])
-      );
-      byId.set(m.id, {
-        ...prev,
-        ...m,
-        attachment: mergedAttachment,
-        seenBy: mergedSeen.length ? mergedSeen : undefined,
-      });
-    }
-  }
-  return Array.from(byId.values()).sort((a, b) => a.ts - b.ts);
-}
-
-export default function ChatRoom({
-  me,
-  room,
-  onUpdateMe,
-  onSwitchRoom,
-  onLeave,
-}: {
+interface Props {
   me: User;
   room: string;
-  onUpdateMe: (next: User) => void;
-  onSwitchRoom: (nextRoom: string) => void;
+  onUserUpdate?: (patch: Partial<User>) => void;
   onLeave: () => void;
-}) {
-  const [messages, setMessages] = useState<Message[]>(() => loadMessages(room));
-  const [cloudHumans, setCloudHumans] = useState<Member[]>([]);
-  const [localHumans, setLocalHumans] = useState<Member[]>([]);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>("connecting");
-  const [botMode, setBotModeState] = useState<BotMode>(() => getBotMode());
-  const [game, setGame] = useState<LiveGame | null>(() => readGame(room));
-  const [input, setInput] = useState("");
-  const [replyingTo, setReplyingTo] = useState<ReplyPreview | null>(null);
-  const [editingMsg, setEditingMsg] = useState<Message | null>(null);
-  const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [picker, setPicker] = useState<"emoji" | "gif" | "sound" | null>(null);
-  const [typing, setTyping] = useState<
-    Record<string, { name: string; until: number }>
-  >({});
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [pollModalOpen, setPollModalOpen] = useState(false);
-  const [pollQuestion, setPollQuestion] = useState("");
-  const [pollOptions, setPollOptions] = useState(["", "", ""]);
-  const [roomInput, setRoomInput] = useState(room);
-  const [editName, setEditName] = useState(me.name);
-  const [editBio, setEditBio] = useState(me.bio || STATUS_PRESETS[0]);
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [searchOpen, setSearchOpen] = useState<string | null>(null);
-  const [toast, setToast] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [recSecs, setRecSecs] = useState(0);
-  const [dictating, setDictating] = useState(false);
-  const [unread, setUnread] = useState(0);
-  const [reactFor, setReactFor] = useState<string | null>(null);
-  const [retention, setRetention] = useState(getRetentionDays());
-  const [profanity, setProfanity] = useState(getProfanityFilter());
-  const [isLeader, setIsLeader] = useState(false);
-  const [slashMenu, setSlashMenu] = useState(false);
-  const [slashIdx, setSlashIdx] = useState(0);
-  const [phIdx, setPhIdx] = useState(0);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [arcadeOpen, setArcadeOpen] = useState(false);
+}
 
-  const syncRef = useRef<RoomSyncClient | null>(null);
-  const leaderRef = useRef(false);
-  const listRef = useRef<HTMLDivElement>(null);
-  const composerRef = useRef<HTMLTextAreaElement>(null);
-  const atBottomRef = useRef(true);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const recTimerRef = useRef<number>(0);
-  const speechRef = useRef<any>(null);
-  const botTimersRef = useRef<number[]>([]);
-  const idleCountRef = useRef(0);
-  const lastTypingBroadcastRef = useRef(0);
+const SLASH_COMMANDS: {
+  cmd: string;
+  desc: string;
+  game?: GameId;
+  callout?: string;
+}[] = [
+  { cmd: "/aim", desc: "Start Flick Aim Lab (ms precision)", game: "aimlab" },
+  { cmd: "/recall", desc: "Start Sector Recall (4-wave radar)", game: "sector" },
+  { cmd: "/duel", desc: "Start Strike · Guard · Feint duel", game: "duel" },
+  { cmd: "/connect4", desc: "Start Four-in-a-Row match", game: "connect4" },
+  { cmd: "/tictactoe", desc: "Start Tic-Tac-Toe Pro match", game: "tictactoe" },
+  { cmd: "/slide", desc: "Start 15-Slide Sprint", game: "slide" },
+  { cmd: "/wikirace", desc: "Start Wikipedia Speedrun", game: "wikirace" },
+  { cmd: "/bomb", desc: "Start Defuse Protocol co-op", game: "bomb" },
+  { cmd: "/blitz", desc: "Start Target Blitz reflex co-op", game: "blitz" },
+  { cmd: "/search", desc: "Open web / wiki / dictionary intel" },
+  { cmd: "/gg", desc: "Post quick GG WP callout", callout: "GG WP — clean match 🏆" },
+];
 
-  const gameRef = useRef(game);
-  gameRef.current = game;
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-  const botModeRef = useRef(botMode);
-  botModeRef.current = botMode;
+const CALLOUT_CHIPS = [
+  { label: "GG", text: "GG 🤝" },
+  { label: "WP", text: "Well played 🔥" },
+  { label: "GLHF", text: "GLHF — locked in 🎯" },
+  { label: "1v1?", text: "Anyone up for a quick 1v1? ⚔️" },
+  { label: "NICE SHOT", text: "Clean shot ⚡" },
+  { label: "REMATCH", text: "Run it back! ↻" },
+];
 
-  useEffect(() => {
-    setRoomInput(room);
-  }, [room]);
+const QUICK_REACTIONS = ["🔥", "🎯", "🏆", "⚡", "🤝"];
 
-  useEffect(() => {
-    setEditName(me.name);
-    setEditBio(me.bio || STATUS_PRESETS[0]);
-  }, [me]);
+const NEXT_THRESHOLDS = [950, 1075, 1200, 1350, 1500];
 
-  // Unified real human + optional AI squad roster
-  const activeHumans = useMemo(() => {
-    const map = new Map<string, Member>();
-    map.set(me.id, {
-      ...me,
-      lastSeen: Date.now(),
-      bot: false,
-    });
-    for (const h of localHumans) {
-      if (!h.bot && isOnline(h)) map.set(h.id, h);
-    }
-    for (const h of cloudHumans) {
-      if (!h.bot) map.set(h.id, h);
-    }
-    const list = Array.from(map.values());
-    if (!list.some((x) => x.admin) && list.length > 0) {
-      list[0] = { ...list[0], admin: true };
-    }
-    return list;
-  }, [me, localHumans, cloudHumans]);
+function formatClock(ts: number) {
+  return new Date(ts).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-  const botsActive = useMemo(() => {
-    if (botMode === "off") return false;
-    if (botMode === "on") return true;
-    // Smart "auto" mode: AI regulars fill in when solo; step back automatically when 2+ real humans are online!
-    return activeHumans.length <= 1;
-  }, [botMode, activeHumans.length]);
+function resizeUploadImage(file: File, max = 760): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
-  const botsActiveRef = useRef(botsActive);
-  botsActiveRef.current = botsActive;
-
-  const members = useMemo<Member[]>(() => {
-    if (!botsActive) return activeHumans;
+export default function ChatRoom({ me, room, onUserUpdate, onLeave }: Props) {
+  const [stats, setStats] = useState<PlayerStats>(() => loadPlayerStats());
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = loadMessages(room);
+    if (saved.length > 0) return saved;
     return [
-      ...activeHumans,
-      ...BOTS.map((b) => ({ ...b, lastSeen: Date.now() })),
-    ];
-  }, [activeHumans, botsActive]);
-
-  const membersRef = useRef(members);
-  membersRef.current = members;
-
-  const notify = useCallback((t: string) => {
-    setToast(t);
-    window.setTimeout(() => setToast(""), 2800);
-  }, []);
-
-  const emitEvent = useCallback((e: BusEvent) => {
-    syncRef.current?.emit(e);
-  }, []);
-
-  const persistAndBroadcastUpdate = useCallback(
-    (updated: Message) => {
-      setMessages((prev) =>
-        prev.map((p) => (p.id === updated.id ? updated : p))
-      );
-      emitEvent({ t: "update", m: updated });
-      void syncRef.current?.persistMessage(updated);
-    },
-    [emitEvent]
-  );
-
-  const addMessage = useCallback(
-    (m: Message, broadcast = true) => {
-      const initial: Message = {
-        ...m,
-        seenBy: m.seenBy || [m.name],
-        delivery: m.delivery || "sending",
-      };
-      setMessages((prev) =>
-        prev.some((p) => p.id === initial.id) ? prev : [...prev, initial]
-      );
-      if (broadcast) {
-        emitEvent({ t: "msg", m: initial });
-        void syncRef.current?.persistMessage(initial).then((saved) => {
-          setMessages((prev) =>
-            prev.map((x) =>
-              x.id === initial.id
-                ? { ...x, delivery: saved ? "cloud" : "sent" }
-                : x
-            )
-          );
-        });
-      }
-    },
-    [emitEvent]
-  );
-
-  const markMessageSeenBy = useCallback(
-    (msgId: string, readerName: string) => {
-      const target = messagesRef.current.find((m) => m.id === msgId);
-      if (!target || target.seenBy?.includes(readerName)) return;
-      const updated: Message = {
-        ...target,
-        seenBy: [...(target.seenBy || []), readerName],
-      };
-      persistAndBroadcastUpdate(updated);
-    },
-    [persistAndBroadcastUpdate]
-  );
-
-  const systemMsg = useCallback(
-    (text: string) => {
-      addMessage({
+      {
         id: uid(),
         kind: "system",
         userId: "system",
-        name: "ChatArena",
+        name: "System",
         avatar: "",
         ts: Date.now(),
-        text,
-      });
-    },
-    [addMessage]
+        text: `#${room} ready · Invite teammates with INVITE or launch a match via READY CHECK or PLAY.`,
+      },
+    ];
+  });
+
+  const [cloudMembers, setCloudMembers] = useState<Member[]>([]);
+  const [typingMap, setTypingMap] = useState<Record<string, string>>({});
+  const [botMode, setBotModeState] = useState<BotMode>(() => getBotMode());
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("connecting");
+
+  const [text, setText] = useState("");
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<Attachment | null>(
+    null
   );
 
-  // Cycling placeholder hint
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setPhIdx((p) => (p + 1) % PLACEHOLDERS.length);
-    }, 4800);
-    return () => clearInterval(iv);
-  }, []);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showStickers, setShowStickers] = useState(false);
+  const [showSfx, setShowSfx] = useState(false);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOpts, setPollOpts] = useState<string[]>([
+    "Flick Aim Lab",
+    "Strike · Guard · Feint",
+    "Four-in-a-Row",
+  ]);
+  const [searchQuery, setSearchQuery] = useState<string | null>(null);
+  const [libraryMode, setLibraryMode] = useState<"instant" | "lobby" | null>(
+    null
+  );
+  const [sidebarTab, setSidebarTab] = useState<"standings" | "roster">(
+    "standings"
+  );
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(sounds.enabled);
+  const [copied, setCopied] = useState(false);
 
-  /* ---------- Realistic Contextual Bot Simulation (Solo / Opt-In Only) ---------- */
-  const botSay = useCallback(
-    (
-      bot: Member,
-      text: string,
-      readDelayMs: number,
-      typingMs = 1500,
-      replyTo?: ReplyPreview,
-      attachment?: Attachment
-    ) => {
-      const t1 = window.setTimeout(() => {
-        if (!botsActiveRef.current) return;
-        const until = Date.now() + typingMs + 300;
-        emitEvent({
-          t: "typing",
-          uid: bot.id,
-          name: bot.name,
-          until,
+  const [game, setGame] = useState<LiveGame | null>(() => readGame(room));
+  const [gameHidden, setGameHidden] = useState(false);
+
+  const syncRef = useRef<RoomSyncClient | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const lastTypingSent = useRef(0);
+  const gameRef = useRef<LiveGame | null>(game);
+  gameRef.current = game;
+  const messagesRef = useRef<Message[]>(messages);
+  messagesRef.current = messages;
+  const finishHandledSeed = useRef<number | null>(null);
+
+  const meMember = useMemo<Member>(
+    () => ({
+      ...me,
+      elo: stats.elo,
+      wins: stats.wins,
+      streak: stats.streak,
+      lastSeen: Date.now(),
+      bot: false,
+    }),
+    [me, stats]
+  );
+
+  const otherHumans = useMemo(
+    () => cloudMembers.filter((m) => !m.bot && m.id !== me.id),
+    [cloudMembers, me.id]
+  );
+
+  const activeBots = useMemo<Member[]>(() => {
+    if (botMode === "off") return [];
+    if (botMode === "auto" && otherHumans.length > 0) return [];
+    return BOTS;
+  }, [botMode, otherHumans.length]);
+
+  const everyone = useMemo<Member[]>(
+    () => [meMember, ...otherHumans, ...activeBots],
+    [meMember, otherHumans, activeBots]
+  );
+
+  const leaderboard = useMemo(
+    () =>
+      [...everyone].sort(
+        (a, b) =>
+          (b.elo ?? 1000) - (a.elo ?? 1000) ||
+          (b.wins ?? 0) - (a.wins ?? 0)
+      ),
+    [everyone]
+  );
+
+  const isLeader = useMemo(() => {
+    const humanIds = [me.id, ...otherHumans.map((h) => h.id)].sort();
+    return humanIds[0] === me.id && claimLeadership(room);
+  }, [me.id, otherHumans, room]);
+
+  const myTier = useMemo(() => getRankTier(stats.elo), [stats.elo]);
+  const nextThreshold = useMemo(
+    () => NEXT_THRESHOLDS.find((n) => n > stats.elo) ?? null,
+    [stats.elo]
+  );
+  const tierProgress = useMemo(() => {
+    if (!nextThreshold) return 100;
+    const prevIdx = NEXT_THRESHOLDS.indexOf(nextThreshold) - 1;
+    const floor = prevIdx >= 0 ? NEXT_THRESHOLDS[prevIdx] : 800;
+    return Math.min(
+      100,
+      Math.max(6, ((stats.elo - floor) / Math.max(1, nextThreshold - floor)) * 100)
+    );
+  }, [stats.elo, nextThreshold]);
+
+  useEffect(() => {
+    saveMessages(room, messages);
+  }, [room, messages]);
+
+  /* ---------- Incoming Realtime Bus Events ---------- */
+  const handleBusEvent = useCallback(
+    (ev: BusEvent) => {
+      if (ev.t === "msg") {
+        setMessages((cur) => {
+          if (cur.some((x) => x.id === ev.m.id)) return cur;
+          return [...cur, ev.m];
         });
-        setTyping((p) => ({
-          ...p,
-          [bot.id]: { name: bot.name, until },
-        }));
-        const t2 = window.setTimeout(() => {
-          if (!botsActiveRef.current) return;
-          setTyping((p) => {
-            const copy = { ...p };
-            delete copy[bot.id];
-            return copy;
-          });
+        if (ev.m.userId !== me.id && ev.m.kind !== "system") {
           sounds.playPop();
-          addMessage({
-            id: uid(),
-            kind: "chat",
-            userId: bot.id,
-            name: bot.name,
-            avatar: bot.avatar,
-            ts: Date.now(),
-            text,
-            replyTo,
-            attachment,
-          });
-        }, typingMs);
-        botTimersRef.current.push(t2);
-      }, readDelayMs);
-      botTimersRef.current.push(t1);
-    },
-    [addMessage, emitEvent]
-  );
-
-  const maybeBotReply = useCallback(
-    (msg: Message) => {
-      if (!leaderRef.current || !botsActiveRef.current) return;
-      if (!msg.text && msg.attachment?.type !== "gif") return;
-      const plan = generateContextualBotReply(
-        msg.name,
-        msg.text || "",
-        messagesRef.current
-      );
-      const readerName = plan?.bot.name || BOTS[0].name;
-      const tRead = window.setTimeout(() => {
-        if (botsActiveRef.current) markMessageSeenBy(msg.id, readerName);
-      }, 650);
-      botTimersRef.current.push(tRead);
-
-      if (!plan) return;
-      const shouldQuote = Boolean(msg.text && msg.text.length > 48 && Math.random() < 0.35);
-      botSay(
-        plan.bot,
-        plan.reply,
-        plan.readDelayMs,
-        plan.typingMs,
-        shouldQuote && msg.text
-          ? {
-              id: msg.id,
-              userId: msg.userId,
-              name: msg.name,
-              preview: msg.text.slice(0, 72),
-            }
-          : undefined,
-        plan.stickerUrl
-          ? {
-              type: "gif",
-              name: plan.stickerName || "Desi Sticker",
-              url: plan.stickerUrl,
-              mime: "image/svg+xml",
-            }
-          : undefined
-      );
-    },
-    [botSay, markMessageSeenBy]
-  );
-
-  /* ---------- Cloud + Local Realtime Connection ---------- */
-  useEffect(() => {
-    setMessages(loadMessages(room));
-    setGame(readGame(room));
-    setCloudHumans([]);
-    setUnread(0);
-
-    const cutoff = Date.now() - getRetentionDays() * 86400000;
-
-    const handleBusEvent = (e: BusEvent) => {
-      if (e.t === "msg") {
-        setMessages((prev) => {
-          const exists = prev.some((p) => p.id === e.m.id);
-          if (!exists && e.m.userId !== me.id) {
-            sounds.playPop();
-            if (!atBottomRef.current) setUnread((u) => u + 1);
-          }
-          return mergeMessages(prev, [e.m]);
-        });
-      } else if (e.t === "update") {
-        setMessages((prev) => mergeMessages(prev, [e.m]));
-      } else if (e.t === "del") {
-        setMessages((prev) => prev.filter((p) => p.id !== e.id));
-      } else if (e.t === "seen") {
-        setMessages((prev) =>
-          prev.map((m) =>
-            e.ids.includes(m.id) && !m.seenBy?.includes(e.reader)
-              ? { ...m, seenBy: [...(m.seenBy || []), e.reader] }
+        }
+      } else if (ev.t === "update") {
+        setMessages((cur) =>
+          cur.map((x) => (x.id === ev.m.id ? ev.m : x))
+        );
+      } else if (ev.t === "del") {
+        setMessages((cur) => cur.filter((x) => x.id !== ev.id));
+      } else if (ev.t === "seen") {
+        setMessages((cur) =>
+          cur.map((m) =>
+            ev.ids.includes(m.id) && !(m.seenBy || []).includes(ev.reader)
+              ? { ...m, seenBy: [...(m.seenBy || []), ev.reader] }
               : m
           )
         );
-      } else if (e.t === "typing") {
-        setTyping((p) => ({
-          ...p,
-          [e.uid]: { name: e.name, until: e.until },
-        }));
-      } else if (e.t === "game") {
-        const current = readGame(room);
-        if (e.g && (!current || e.g.v >= current.v)) writeGame(room, e.g);
-        if (!e.g) writeGame(room, null);
-        setGame((cur) => (!e.g ? null : !cur || e.g.v >= cur.v ? e.g : cur));
-      } else if (e.t === "presence") {
-        setLocalHumans(loadMembers(room).filter((m) => !m.bot));
-      } else if (e.t === "sound") {
-        sounds.playSoundDrop(e.soundId);
-        const found = SOUNDBOARD_ITEMS.find((x) => x.id === e.soundId);
-        notify(`${found?.emoji || "📯"} ${e.by} ने बजाया: ${found?.label || "साउंड ड्रॉप"}!`);
+      } else if (ev.t === "typing") {
+        if (ev.uid === me.id) return;
+        setTypingMap((cur) => ({ ...cur, [ev.uid]: ev.name }));
+        window.setTimeout(() => {
+          setTypingMap((cur) => {
+            const copy = { ...cur };
+            delete copy[ev.uid];
+            return copy;
+          });
+        }, 2600);
+      } else if (ev.t === "sound") {
+        if (ev.by !== me.id) sounds.playSoundDrop(ev.soundId);
+      } else if (ev.t === "game") {
+        setGame((cur) => {
+          if (ev.g === null) {
+            writeGame(room, null);
+            return null;
+          }
+          if (cur && ev.g.seed === cur.seed && ev.g.v < cur.v) return cur;
+          let incoming = ev.g;
+          if (
+            incoming.phase === "play" &&
+            !incoming.players.some((p) => p.uid === me.id)
+          ) {
+            incoming = {
+              ...incoming,
+              players: [
+                ...incoming.players,
+                { uid: me.id, name: me.name, avatar: me.avatar, score: 0 },
+              ],
+            };
+          }
+          if (!cur || cur.seed !== incoming.seed) setGameHidden(false);
+          writeGame(room, incoming);
+          return incoming;
+        });
       }
-    };
+    },
+    [me.avatar, me.id, me.name, room]
+  );
 
-    const client = new RoomSyncClient(room, me, {
+  /* ---------- Connect Live Supabase + BroadcastChannel ---------- */
+  useEffect(() => {
+    const client = new RoomSyncClient(room, meMember, {
       onStatus: setSyncStatus,
       onHydrateMessages: (cloudMsgs) => {
-        setMessages((prev) => mergeMessages(prev, cloudMsgs));
+        if (!cloudMsgs.length) return;
+        setMessages((cur) => {
+          const map = new Map<string, Message>();
+          for (const m of cur) {
+            if (m.userId !== "system") map.set(m.id, m);
+          }
+          for (const m of cloudMsgs) map.set(m.id, m);
+          const merged = [...map.values()].sort((a, b) => a.ts - b.ts);
+          return merged.length ? merged : cur;
+        });
       },
       onEvent: handleBusEvent,
-      onCloudMembers: setCloudHumans,
+      onCloudMembers: setCloudMembers,
     });
     syncRef.current = client;
+    const cutoff = Date.now() - getRetentionDays() * 86400000;
     void client.connect(cutoff);
 
-    const existing = loadMembers(room).filter((m) => !m.bot);
-    const nextLocal = existing.some((m) => m.id === me.id)
-      ? existing.map((m) =>
-          m.id === me.id
-            ? { ...m, name: me.name, avatar: me.avatar, bio: me.bio, lastSeen: Date.now() }
-            : m
-        )
-      : [
-          ...existing,
-          {
-            ...me,
-            lastSeen: Date.now(),
-            admin: !existing.some((m) => m.admin),
-          },
-        ];
-    saveMembers(room, nextLocal);
-    setLocalHumans(nextLocal);
-    client.emit({ t: "presence" });
-
-    leaderRef.current = claimLeadership(room);
-    setIsLeader(leaderRef.current);
-
-    if (!existing.some((m) => m.id === me.id)) {
-      addMessage({
-        id: uid(),
-        kind: "system",
-        userId: "system",
-        name: "ChatArena",
-        avatar: "",
-        ts: Date.now(),
-        text: `👋 ${me.name} joined /${room}`,
-      });
-      if (leaderRef.current && botsActiveRef.current) {
-        const bot = BOTS[0];
-        botSay(
-          bot,
-          `अरे राम-राम ${me.name} भाई! 🙏 रूम /${room} एकदम लाइव है — ऊपर वाले 🔗 लिंक से यारों को जोड़ लो, 📯 प्रेशर हॉर्न बजाओ, मीम्स फेंको, या GAME लिखते ही मुकाबला चालू करो! 🔥`,
-          1100,
-          1400
-        );
-      }
-    }
-
-    const heartbeat = window.setInterval(() => {
-      leaderRef.current = claimLeadership(room);
-      setIsLeader(leaderRef.current);
-      const cur = loadMembers(room).filter((m) => !m.bot);
-      const updated = cur.map((m) =>
-        m.id === me.id
-          ? { ...m, name: me.name, avatar: me.avatar, bio: me.bio, lastSeen: Date.now() }
-          : m
-      );
-      if (!updated.some((m) => m.id === me.id)) {
-        updated.push({ ...me, lastSeen: Date.now() });
-      }
-      saveMembers(room, updated);
-      setLocalHumans(updated);
-      client.emit({ t: "presence" });
-      setTyping((p) =>
-        Object.fromEntries(
-          Object.entries(p).filter(([, v]) => v.until > Date.now())
-        )
-      );
-      const g = readGame(room);
-      setGame((c) => (!g ? null : !c || g.v >= c.v ? g : c));
-    }, 4000);
-
-    const idle = window.setInterval(() => {
-      if (
-        !leaderRef.current ||
-        !botsActiveRef.current ||
-        gameRef.current ||
-        idleCountRef.current >= 3
-      )
-        return;
-      const last = messagesRef.current[messagesRef.current.length - 1];
-      if (last && Date.now() - last.ts > 65000) {
-        idleCountRef.current++;
-        const bot = BOTS[Math.floor(Math.random() * BOTS.length)];
-        botSay(
-          bot,
-          BOT_IDLE[Math.floor(Math.random() * BOT_IDLE.length)],
-          600,
-          1500
-        );
-      }
-    }, 35000);
-
     return () => {
-      clearInterval(heartbeat);
-      clearInterval(idle);
-      botTimersRef.current.forEach(clearTimeout);
-      botTimersRef.current = [];
       client.disconnect();
       syncRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room, me.id]);
+  }, [room, me.id, handleBusEvent]);
 
-  // Persist local cache & emit read receipts for visible incoming messages
+  // Mark incoming messages seen
   useEffect(() => {
-    saveMessages(room, messages);
-    const unseenIds = messages
-      .slice(-25)
+    const unseen = messages
       .filter(
         (m) =>
-          m.kind === "chat" &&
           m.userId !== me.id &&
-          !(m.seenBy || []).includes(me.name)
+          m.kind !== "system" &&
+          !(m.seenBy || []).includes(me.id)
       )
       .map((m) => m.id);
-
-    if (unseenIds.length > 0 && atBottomRef.current) {
-      setMessages((prev) =>
-        prev.map((m) =>
-          unseenIds.includes(m.id)
-            ? { ...m, seenBy: Array.from(new Set([...(m.seenBy || []), me.name])) }
-            : m
-        )
-      );
-      emitEvent({ t: "seen", reader: me.name, ids: unseenIds });
+    if (unseen.length > 0) {
+      syncRef.current?.emit({ t: "seen", reader: me.id, ids: unseen });
     }
-  }, [messages, room, me.id, me.name, emitEvent]);
+  }, [messages, me.id]);
 
   useEffect(() => {
-    if (atBottomRef.current) {
-      listRef.current?.scrollTo({
-        top: listRef.current.scrollHeight,
-        behavior: "smooth",
+    listRef.current?.scrollTo({
+      top: listRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages.length, Object.keys(typingMap).length]);
+
+  /* ---------- Publish & Update Message Helpers ---------- */
+  const publishMessage = useCallback(
+    (partial: Partial<Message>, author?: Member): Message => {
+      const sender = author ?? meMember;
+      const msg: Message = {
+        id: uid(),
+        kind: "chat",
+        userId: sender.id,
+        name: sender.name,
+        avatar: sender.avatar,
+        ts: Date.now(),
+        senderElo: sender.elo ?? 1000,
+        reactions: {},
+        seenBy: [sender.id],
+        delivery: "sent",
+        ...partial,
+      };
+      setMessages((cur) => [...cur, msg]);
+      syncRef.current?.emit({ t: "msg", m: msg });
+      void syncRef.current?.persistMessage(msg).then((ok) => {
+        if (ok) {
+          setMessages((cur) =>
+            cur.map((x) => (x.id === msg.id ? { ...x, delivery: "cloud" } : x))
+          );
+        }
       });
-      setUnread(0);
-    }
-  }, [messages.length, typing]);
-
-  const onScroll = () => {
-    const el = listRef.current;
-    if (!el) return;
-    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    if (atBottomRef.current) setUnread(0);
-  };
-
-  const jumpToMessage = (id: string) => {
-    const el = document.getElementById("msg-" + id);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    setHighlightedId(id);
-    window.setTimeout(() => setHighlightedId(null), 1400);
-  };
-
-  /* ---------- Cross-Device Game Operations ---------- */
-  const syncGame = useCallback(
-    (g: LiveGame | null) => {
-      setGame(g);
-      emitEvent({ t: "game", g });
-      void syncRef.current?.persistGame(g);
+      return msg;
     },
-    [emitEvent]
+    [meMember]
   );
 
-  const mutate = useCallback(
-    (fn: (g: LiveGame) => LiveGame | null) => {
-      const g = mutateGame(room, fn);
-      syncGame(g);
-    },
-    [room, syncGame]
-  );
+  const commitMessageUpdate = useCallback((updated: Message) => {
+    setMessages((cur) => cur.map((m) => (m.id === updated.id ? updated : m)));
+    syncRef.current?.emit({ t: "update", m: updated });
+    void syncRef.current?.persistMessage(updated);
+  }, []);
 
-  const startGame = useCallback(
-    (byName: string, requested?: GameId) => {
-      sounds.playGameTrigger();
-      const online = membersRef.current.filter(isOnline);
-      const id =
-        requested || GAME_IDS[Math.floor(Math.random() * GAME_IDS.length)];
-      let players = playersFromMembers(online, isOnline);
-      if (HUMAN_ONLY_GAMES.includes(id)) {
-        players = players.filter((p) => !p.bot);
-      }
-      if (!players.length) {
-        players = [{ uid: me.id, name: me.name, avatar: me.avatar, score: 0 }];
-      }
-      const g = createGame(
-        id,
-        Math.floor(Math.random() * 1e9),
-        byName,
-        players
-      );
-      writeGame(room, g);
-      syncGame(g);
-      const meta = GAME_META[g.id];
-      systemMsg(
-        `🎮 ${byName} launched ${meta.name} ${meta.emoji} — ${players.length} in squad! Chat locked until mission ends.`
-      );
-    },
-    [room, syncGame, systemMsg, me]
-  );
-
-  const finishGame = useCallback(
-    (result: string, bonus?: string) => {
-      const existing = readGame(room);
-      if (!existing || existing.phase === "done") return;
-      const g = mutateGame(room, (cur) => ({
-        ...cur,
-        phase: "done",
-        result,
-        bonus,
-      }));
-      syncGame(g);
-      systemMsg(`🏆 Mission complete: ${result} — Chat unlocked!`);
-      if (bonus) systemMsg(bonus);
-      window.setTimeout(() => {
-        writeGame(room, null);
-        syncGame(null);
-      }, 4200);
-      if (leaderRef.current && botsActiveRef.current) {
-        const bot = BOTS[Math.floor(Math.random() * BOTS.length)];
-        botSay(
-          bot,
-          BOT_GAME_CHEER[Math.floor(Math.random() * BOT_GAME_CHEER.length)],
-          4600,
-          1200
-        );
-      }
-    },
-    [room, syncGame, systemMsg, botSay]
-  );
-
-  const abortGame = useCallback(() => {
-    const existing = readGame(room);
-    writeGame(room, null);
-    syncGame(null);
-    if (existing && existing.phase === "play") {
-      systemMsg(`🔓 ${me.name} ended ${GAME_META[existing.id].name} — Chat unlocked.`);
-    }
-  }, [me.name, room, syncGame, systemMsg]);
-
-  // Auto-join ongoing squad game when entering mid-round from another phone/browser
+  // Clean welcome callout when entering solo
   useEffect(() => {
-    if (
-      game &&
-      game.phase === "play" &&
-      !game.players.some((p) => p.uid === me.id)
-    ) {
-      const g = joinGame(room, {
+    if (!activeBots.length) return;
+    const key = `arena_pro_welcome_${room}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    const t = window.setTimeout(() => {
+      const bot = activeBots[0];
+      if (!bot) return;
+      publishMessage(
+        {
+          text: `Welcome to #${room}, ${me.name}. Queue a match with READY CHECK or hit PLAY for instant start 🎯`,
+        },
+        bot
+      );
+    }, 850);
+    return () => clearTimeout(t);
+  }, [activeBots, me.name, publishMessage, room]);
+
+  // Occasional solo sparring chatter when lobby is idle
+  useEffect(() => {
+    if (!isLeader || !activeBots.length) return;
+    const iv = window.setInterval(() => {
+      if (gameRef.current) return;
+      const bot = activeBots[Math.floor(Math.random() * activeBots.length)];
+      setTypingMap((cur) => ({ ...cur, [bot.id]: bot.name }));
+      window.setTimeout(() => {
+        setTypingMap((cur) => {
+          const next = { ...cur };
+          delete next[bot.id];
+          return next;
+        });
+        if (!gameRef.current) {
+          publishMessage(
+            {
+              text: BOT_IDLE[Math.floor(Math.random() * BOT_IDLE.length)],
+            },
+            bot
+          );
+        }
+      }, 950);
+    }, 55000);
+    return () => clearInterval(iv);
+  }, [activeBots, isLeader, publishMessage]);
+
+  /* ---------- Multiplayer Game Lifecycle ---------- */
+  const launchGame = useCallback(
+    (id: GameId | null) => {
+      if (!id) return;
+      finishHandledSeed.current = null;
+      const players = everyone.map((u) => ({
+        uid: u.id,
+        name: u.name,
+        avatar: u.avatar,
+        score: 0,
+        bot: u.bot,
+      }));
+      const g = createGame(id, Math.floor(Math.random() * 1e9), me.id, players);
+      setGame(g);
+      setGameHidden(false);
+      setLibraryMode(null);
+      writeGame(room, g);
+      syncRef.current?.emit({ t: "game", g });
+      void syncRef.current?.persistGame(g);
+      sounds.playGameTrigger();
+      publishMessage({
+        kind: "system",
+        text: `${GAME_META[id].emoji} ${me.name} started ${GAME_META[id].name}`,
+      });
+    },
+    [everyone, me.id, me.name, publishMessage, room]
+  );
+
+  // Auto-join active game if another player started one
+  useEffect(() => {
+    if (game && game.phase === "play" && !game.players.some((p) => p.uid === me.id)) {
+      const joined = joinGame(room, {
         uid: me.id,
         name: me.name,
         avatar: me.avatar,
         score: 0,
       });
-      if (g) syncGame(g);
+      if (joined) {
+        setGame(joined);
+        syncRef.current?.emit({ t: "game", g: joined });
+        void syncRef.current?.persistGame(joined);
+      }
     }
-  }, [game, me, room, syncGame]);
+  }, [game, me.avatar, me.id, me.name, room]);
 
-  /* ---------- Sending, Replying, Editing & Polls ---------- */
-  const createSquadPoll = useCallback(
-    (question: string, rawOpts: string[]) => {
-      const cleanOpts = rawOpts.map((o) => o.trim()).filter(Boolean);
-      if (!question.trim() || cleanOpts.length < 2) return;
-      const poll: SquadPoll = {
-        question: question.trim(),
-        createdBy: me.name,
-        options: cleanOpts.slice(0, 5).map((label, i) => ({
-          id: "opt_" + i + "_" + uid().slice(0, 4),
-          label,
-          votes: [],
-        })),
-      };
-      sounds.playSend();
-      const msg: Message = {
-        id: uid(),
-        kind: "chat",
-        userId: me.id,
-        name: me.name,
-        avatar: me.avatar,
-        ts: Date.now(),
-        poll,
-      };
-      addMessage(msg);
-      if (leaderRef.current && botsActiveRef.current) {
-        BOTS.slice(0, 2).forEach((b, idx) => {
-          const t = window.setTimeout(() => {
-            if (!botsActiveRef.current) return;
-            const cur = messagesRef.current.find((x) => x.id === msg.id);
-            if (!cur?.poll) return;
-            const pick =
-              cur.poll.options[
-                Math.floor(Math.random() * cur.poll.options.length)
-              ];
+  const postReadyCheck = useCallback(
+    (gameId: GameId) => {
+      setLibraryMode(null);
+      sounds.playClack();
+      const created = publishMessage({
+        text: "",
+        lobby: {
+          gameId,
+          hostName: me.name,
+          readyNames: [me.name],
+          launched: false,
+        },
+      });
+      // Solo AI sparring partners ready up automatically
+      if (activeBots.length > 0) {
+        activeBots.slice(0, 2).forEach((b, idx) => {
+          window.setTimeout(() => {
+            const current = messagesRef.current.find((m) => m.id === created.id);
+            if (!current?.lobby || current.lobby.launched) return;
+            if (current.lobby.readyNames.includes(b.name)) return;
             const updated: Message = {
-              ...cur,
-              poll: {
-                ...cur.poll,
-                options: cur.poll.options.map((o) =>
-                  o.id === pick.id && !o.votes.includes(b.name)
-                    ? { ...o, votes: [...o.votes, b.name] }
-                    : o
-                ),
+              ...current,
+              lobby: {
+                ...current.lobby,
+                readyNames: [...current.lobby.readyNames, b.name],
               },
             };
-            persistAndBroadcastUpdate(updated);
-          }, 1400 + idx * 1100);
-          botTimersRef.current.push(t);
+            commitMessageUpdate(updated);
+            sounds.playTick();
+          }, 900 + idx * 800);
         });
       }
     },
-    [addMessage, me, persistAndBroadcastUpdate]
+    [activeBots, commitMessageUpdate, me.name, publishMessage]
   );
 
-  const triggerSoundDrop = useCallback(
-    (soundId: SoundDropId, label?: string, shoutout?: string) => {
-      sounds.playSoundDrop(soundId);
-      emitEvent({ t: "sound", soundId, by: me.name });
-      const item = SOUNDBOARD_ITEMS.find((x) => x.id === soundId);
-      const line = shoutout || item?.shoutout || `📯 ${label || "भौकाल साउंड"}!`;
-      addMessage({
-        id: uid(),
-        kind: "chat",
-        userId: me.id,
-        name: me.name,
-        avatar: me.avatar,
-        ts: Date.now(),
-        text: line,
-      });
-      notify(`${item?.emoji || "📯"} पूरे रूम में '${item?.label || label}' गूँज गया!`);
-    },
-    [addMessage, emitEvent, me, notify]
-  );
-
-  const send = useCallback(() => {
-    const raw = input.trim();
-    if (!raw || gameRef.current) return;
-    setInput("");
-    setPicker(null);
-    setSlashMenu(false);
-
-    // Save edit if editing an existing message
-    if (editingMsg) {
-      const updated: Message = {
-        ...editingMsg,
-        text: cleanText(raw),
-        editedAt: Date.now(),
-      };
-      setEditingMsg(null);
-      sounds.playPop();
-      persistAndBroadcastUpdate(updated);
-      notify("✏️ Message updated");
-      return;
-    }
-
-    if (raw.toUpperCase() === "GAME") {
-      sounds.playGameTrigger();
-      setReplyingTo(null);
-      addMessage({
-        id: uid(),
-        kind: "chat",
-        userId: me.id,
-        name: me.name,
-        avatar: me.avatar,
-        ts: Date.now(),
-        text: "GAME",
-      });
-      startGame(me.name);
-      return;
-    }
-
-    if (raw === "/game") {
-      setArcadeOpen(true);
-      return;
-    }
-
-    if (/^\/(horn|chai|dhol|nagin|ipl|ghanti)\b/i.test(raw)) {
-      const soundKey = raw.slice(1).trim().toLowerCase() as SoundDropId;
-      triggerSoundDrop(soundKey);
-      return;
-    }
-
-    if (/^\/poll\b/i.test(raw)) {
-      const rest = raw.replace(/^\/poll\s*/i, "").trim();
-      const parts = rest.split("|").map((s) => s.trim()).filter(Boolean);
-      if (parts.length >= 3) {
-        createSquadPoll(parts[0], parts.slice(1));
-      } else {
-        setPollQuestion(parts[0] || "");
-        setPollModalOpen(true);
-      }
-      return;
-    }
-
-    if (
-      /^\/(ask|search|find|trip|train|flight|movie|stay|weather|food|calc)\b/i.test(
-        raw
-      )
-    ) {
-      sounds.playPop();
-      setSearchOpen(raw.replace(/^\/\w+\s*/, ""));
-      return;
-    }
-
-    sounds.playSend();
-    const outgoing: Message = {
-      id: uid(),
-      kind: "chat",
-      userId: me.id,
-      name: me.name,
-      avatar: me.avatar,
-      ts: Date.now(),
-      text: cleanText(raw),
-      replyTo: replyingTo || undefined,
-    };
-    setReplyingTo(null);
-    addMessage(outgoing);
-
-    if (looksLikeQuestion(raw)) {
-      setSearchOpen(raw);
-      notify("🔎 Search Console ready — preview live card before sharing!");
-    } else {
-      maybeBotReply(outgoing);
-    }
-  }, [
-    input,
-    editingMsg,
-    replyingTo,
-    me,
-    addMessage,
-    startGame,
-    createSquadPoll,
-    maybeBotReply,
-    notify,
-    persistAndBroadcastUpdate,
-    triggerSoundDrop,
-  ]);
-
-  const shareCard = useCallback(
-    (card: SearchCard) => {
-      setSearchOpen(null);
-      sounds.playSend();
-      const msg: Message = {
-        id: uid(),
-        kind: "ai",
-        userId: me.id,
-        name: me.name,
-        avatar: me.avatar,
-        ts: Date.now(),
-        card,
-        reactions: {},
-      };
-      addMessage(msg);
-      notify("📤 Shared live card with the room");
-
-      if (leaderRef.current && botsActiveRef.current) {
-        const { bot, reply } = generateBotCardReaction(card);
-        botSay(bot, reply, 1400, 1500);
-        if (card.askVote && card.poll?.length) {
-          const t = window.setTimeout(() => {
-            if (!botsActiveRef.current) return;
-            const cur = messagesRef.current.find((x) => x.id === msg.id);
-            if (!cur?.card?.poll) return;
-            const updatedCard: SearchCard = {
-              ...cur.card,
-              poll: cur.card.poll.map((opt, idx) =>
-                idx === 0 && !opt.votes.includes(bot.name)
-                  ? { ...opt, votes: [...opt.votes, bot.name] }
-                  : opt
-              ),
-            };
-            persistAndBroadcastUpdate({ ...cur, card: updatedCard });
-          }, 2200);
-          botTimersRef.current.push(t);
-        }
-      }
-    },
-    [addMessage, botSay, me, notify, persistAndBroadcastUpdate]
-  );
-
-  const voteOnMessagePoll = useCallback(
-    (m: Message, optionId: string, kind: "squad" | "card") => {
-      sounds.playPop();
-      if (kind === "squad" && m.poll) {
-        const options = m.poll.options.map((o) => {
-          const filtered = o.votes.filter((n) => n !== me.name);
-          if (o.id !== optionId) return { ...o, votes: filtered };
-          return {
-            ...o,
-            votes: o.votes.includes(me.name) ? filtered : [...filtered, me.name],
-          };
-        });
-        persistAndBroadcastUpdate({ ...m, poll: { ...m.poll, options } });
-      } else if (kind === "card" && m.card?.poll) {
-        const poll = m.card.poll.map((o) => {
-          const filtered = o.votes.filter((n) => n !== me.name);
-          if (o.id !== optionId) return { ...o, votes: filtered };
-          return {
-            ...o,
-            votes: o.votes.includes(me.name) ? filtered : [...filtered, me.name],
-          };
-        });
-        persistAndBroadcastUpdate({ ...m, card: { ...m.card, poll } });
-      }
-    },
-    [me.name, persistAndBroadcastUpdate]
-  );
-
-  const sendAttachment = useCallback(
-    (att: Attachment, text?: string) => {
-      if (gameRef.current) return;
-      sounds.playSend();
-      const outgoing: Message = {
-        id: uid(),
-        kind: "chat",
-        userId: me.id,
-        name: me.name,
-        avatar: me.avatar,
-        ts: Date.now(),
-        text,
-        attachment: att,
-        replyTo: replyingTo || undefined,
-      };
-      setReplyingTo(null);
-      addMessage(outgoing);
-      maybeBotReply({
-        ...outgoing,
-        text:
-          text ||
-          (att.type === "gif"
-            ? ""
-            : att.type === "audio"
-            ? "hey check out this note"
-            : "shared a file"),
-      });
-    },
-    [me, replyingTo, addMessage, maybeBotReply]
-  );
-
-  const react = useCallback(
-    (m: Message, emoji: string) => {
-      sounds.playPop();
-      setReactFor(null);
-      const r = { ...(m.reactions || {}) };
-      const list = r[emoji] || [];
-      r[emoji] = list.includes(me.name)
-        ? list.filter((n) => n !== me.name)
-        : [...list, me.name];
-      if (!r[emoji].length) delete r[emoji];
-      persistAndBroadcastUpdate({ ...m, reactions: r });
-    },
-    [me.name, persistAndBroadcastUpdate]
-  );
-
-  const onTyping = (v: string) => {
-    setInput(v);
-    if (v.startsWith("/") && !v.includes(" ")) {
-      setSlashMenu(true);
-      setSlashIdx(0);
-    } else {
-      setSlashMenu(false);
-    }
-    const now = Date.now();
-    if (now - lastTypingBroadcastRef.current > 900) {
-      lastTypingBroadcastRef.current = now;
-      emitEvent({
-        t: "typing",
-        uid: me.id,
-        name: me.name,
-        until: now + 2600,
-      });
-    }
+  const toggleLobbyReady = (m: Message) => {
+    if (!m.lobby || m.lobby.launched) return;
+    sounds.playClack();
+    const has = m.lobby.readyNames.includes(me.name);
+    const readyNames = has
+      ? m.lobby.readyNames.filter((n) => n !== me.name)
+      : [...m.lobby.readyNames, me.name];
+    commitMessageUpdate({
+      ...m,
+      lobby: { ...m.lobby, readyNames },
+    });
   };
 
-  const filteredSlash = useMemo(() => {
-    const needle = input.trim().toLowerCase();
-    if (!needle.startsWith("/")) return SLASH_COMMANDS;
-    const matches = SLASH_COMMANDS.filter((s) => s.cmd.startsWith(needle));
-    return matches.length ? matches : SLASH_COMMANDS;
-  }, [input]);
-
-  const handleSlashSelect = (cmd: string) => {
-    sounds.playPop();
-    setSlashMenu(false);
-    if (cmd === "/game") {
-      setArcadeOpen(true);
-      setInput("");
-    } else if (cmd === "/poll") {
-      setPollModalOpen(true);
-      setInput("");
-    } else if (cmd === "/horn") {
-      setInput("");
-      triggerSoundDrop("horn");
-    } else if (cmd === "/chai") {
-      setInput("");
-      triggerSoundDrop("chai");
-    } else {
-      setSearchOpen("");
-      setInput("");
-    }
+  const launchFromLobby = (m: Message) => {
+    if (!m.lobby) return;
+    commitMessageUpdate({
+      ...m,
+      lobby: { ...m.lobby, launched: true },
+    });
+    launchGame(m.lobby.gameId);
   };
 
-  const onFile = async (f: File | undefined) => {
-    if (!f) return;
-    if (f.size > 4 * 1024 * 1024)
-      return notify("File too large — keep under 4 MB");
-    const reader = new FileReader();
-    reader.onload = () => {
-      const ephemeral = f.size > 500 * 1024;
-      sendAttachment({
-        type: f.type.startsWith("image/") ? "image" : "file",
-        name: f.name,
-        url: String(reader.result),
-        mime: f.type || "application/octet-stream",
-        size: f.size,
-        ephemeral,
+  const handleMutateGame = useCallback(
+    (fn: (cur: LiveGame) => LiveGame | null) => {
+      setGame((cur) => {
+        if (!cur) return null;
+        const next = fn(cur);
+        if (!next) return cur;
+        const stamped: LiveGame = { ...next, v: cur.v + 1 };
+        writeGame(room, stamped);
+        syncRef.current?.emit({ t: "game", g: stamped });
+        void syncRef.current?.persistGame(stamped);
+        return stamped;
       });
-      if (ephemeral) notify("Large file broadcast live to online members");
-    };
-    reader.readAsDataURL(f);
-  };
+    },
+    [room]
+  );
 
-  const toggleRecording = async () => {
-    if (recording) return recorderRef.current?.stop();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      });
-      const rec = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-      const started = Date.now();
-      rec.ondataavailable = (e) => chunks.push(e.data);
-      rec.onstop = () => {
-        clearInterval(recTimerRef.current);
-        setRecording(false);
-        setRecSecs(0);
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunks, {
-          type: rec.mimeType || "audio/webm",
+  const handleFinishGame = useCallback(
+    (result: string, bonus?: string) => {
+      setGame((cur) => {
+        if (!cur || cur.phase === "done") return cur;
+        if (finishHandledSeed.current === cur.seed) return cur;
+        finishHandledSeed.current = cur.seed;
+
+        const done: LiveGame = {
+          ...cur,
+          phase: "done",
+          result,
+          bonus,
+          v: cur.v + 1,
+        };
+        writeGame(room, done);
+        syncRef.current?.emit({ t: "game", g: done });
+        void syncRef.current?.persistGame(done);
+
+        const standings = [...done.players]
+          .sort((a, b) => b.score - a.score)
+          .map((p) => ({ name: p.name, score: p.score }));
+        const topScore = standings[0]?.score ?? 0;
+        const myScore =
+          done.players.find((p) => p.uid === me.id)?.score ?? 0;
+        const won =
+          (myScore >= topScore && topScore > 0) ||
+          result.toLowerCase().includes(me.name.toLowerCase()) ||
+          result.toLowerCase().includes("cleared") ||
+          result.toLowerCase().includes("defused");
+        const bestMs =
+          typeof done.data?.bestMs === "number" ? done.data.bestMs : undefined;
+
+        const { next, delta } = recordMatchResult(won, bestMs);
+        setStats(next);
+        const updatedMe: User = {
+          ...me,
+          elo: next.elo,
+          wins: next.wins,
+          streak: next.streak,
+        };
+        onUserUpdate?.({
+          elo: next.elo,
+          wins: next.wins,
+          streak: next.streak,
         });
-        if (blob.size < 500) return;
-        const duration = Math.max(1, Math.round((Date.now() - started) / 1000));
-        const reader = new FileReader();
-        reader.onload = () =>
-          sendAttachment({
-            type: "audio",
-            name: "Voice note",
-            url: String(reader.result),
-            mime: blob.type,
-            size: blob.size,
-            duration,
-            ephemeral: blob.size > 500 * 1024,
-          });
-        reader.readAsDataURL(blob);
-      };
-      rec.start();
-      recorderRef.current = rec;
-      setRecording(true);
-      recTimerRef.current = window.setInterval(
-        () =>
-          setRecSecs((s) => {
-            if (s >= 59) rec.stop();
-            return s + 1;
-          }),
-        1000
+        syncRef.current?.updateMyPresence(updatedMe);
+
+        const card: MatchResultCard = {
+          gameId: cur.id,
+          summary: result,
+          mvp: standings[0]?.name || me.name,
+          eloDelta: delta,
+          standings: standings.slice(0, 4),
+        };
+        publishMessage({
+          text: "",
+          matchResult: card,
+        });
+        return done;
+      });
+    },
+    [me, onUserUpdate, publishMessage, room]
+  );
+
+  const abortGame = useCallback(() => {
+    setGame(null);
+    writeGame(room, null);
+    syncRef.current?.emit({ t: "game", g: null });
+    void syncRef.current?.persistGame(null);
+  }, [room]);
+
+  const triggerSmartBotReply = useCallback(
+    (sentText: string) => {
+      if (!activeBots.length) return;
+      const plan = generateContextualBotReply(
+        me.name,
+        sentText,
+        messagesRef.current
       );
-    } catch {
-      notify("Microphone permission denied");
-    }
-  };
+      if (!plan) return;
 
-  const toggleDictation = () => {
-    if (dictating) {
-      speechRef.current?.stop();
-      return setDictating(false);
-    }
-    const SR =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-    if (!SR) return notify("Voice dictation requires Chrome, Edge, or Safari");
-    sounds.playPop();
-    const rec = new SR();
-    rec.lang = "en-US";
-    rec.interimResults = true;
-    rec.continuous = false;
-    const base = input;
-    rec.onresult = (e: any) => {
-      let t = "";
-      for (let i = 0; i < e.results.length; i++)
-        t += e.results[i][0].transcript;
-      setInput((base ? base + " " : "") + t);
-    };
-    rec.onend = () => setDictating(false);
-    rec.onerror = () => {
-      setDictating(false);
-      notify("Couldn't capture speech audio");
-    };
-    rec.start();
-    speechRef.current = rec;
-    setDictating(true);
-  };
+      window.setTimeout(() => {
+        setTypingMap((cur) => ({ ...cur, [plan.bot.id]: plan.bot.name }));
+        window.setTimeout(() => {
+          setTypingMap((cur) => {
+            const copy = { ...cur };
+            delete copy[plan.bot.id];
+            return copy;
+          });
+          publishMessage(
+            {
+              text: plan.reply,
+              attachment: plan.stickerUrl
+                ? {
+                    type: "gif",
+                    name: plan.stickerName || "Callout",
+                    url: plan.stickerUrl,
+                    mime: "image/svg+xml",
+                  }
+                : undefined,
+            },
+            plan.bot
+          );
+        }, plan.typingMs);
+      }, plan.readDelayMs);
+    },
+    [activeBots.length, me.name, publishMessage]
+  );
 
-  const copyLink = async () => {
-    const link = roomLink(room);
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Join /${room} on ChatArena Live`,
-          text: `Hop into our live room /${room} — chat & play multiplayer games together!`,
-          url: link,
+  const handleSend = () => {
+    const trimmed = cleanText(text.trim());
+    if (!trimmed && !pendingAttachment) return;
+    sounds.playSend();
+
+    if (editingId) {
+      const target = messages.find((m) => m.id === editingId);
+      if (target) {
+        commitMessageUpdate({
+          ...target,
+          text: trimmed,
+          editedAt: Date.now(),
         });
+      }
+      setEditingId(null);
+      setText("");
+      return;
+    }
+
+    // Slash commands
+    if (trimmed.startsWith("/") && !pendingAttachment) {
+      const [rawCmd, ...rest] = trimmed.split(" ");
+      const arg = rest.join(" ").trim();
+      const cmd = rawCmd.toLowerCase();
+
+      const matchedCmd = SLASH_COMMANDS.find((c) => c.cmd === cmd);
+      if (matchedCmd?.game) {
+        setText("");
+        launchGame(matchedCmd.game);
         return;
-      } catch {
-        /* user dismissed share sheet — fall back to clipboard */
+      }
+      if (matchedCmd?.callout) {
+        publishMessage({ text: matchedCmd.callout });
+        setText("");
+        return;
+      }
+      const directGame = cmd.slice(1) as GameId;
+      if (GAME_META[directGame]) {
+        setText("");
+        launchGame(directGame);
+        return;
+      }
+      if (cmd === "/search") {
+        setText("");
+        setSearchQuery(arg);
+        return;
+      }
+      if (cmd === "/shrug") {
+        publishMessage({ text: `${arg} ¯\\_(ツ)_/¯`.trim() });
+        setText("");
+        return;
       }
     }
-    try {
-      await navigator.clipboard.writeText(link);
-      sounds.playSuccess();
-      notify(`🔗 Copied ${link}`);
-    } catch {
-      notify(link);
-    }
+
+    publishMessage({
+      text: trimmed,
+      attachment: pendingAttachment || undefined,
+      replyTo: replyTo
+        ? {
+            id: replyTo.id,
+            userId: replyTo.userId,
+            name: replyTo.name,
+            preview:
+              replyTo.text ||
+              replyTo.attachment?.name ||
+              "Shared card",
+          }
+        : undefined,
+    });
+    setText("");
+    setPendingAttachment(null);
+    setReplyTo(null);
+    triggerSmartBotReply(trimmed);
   };
 
-  const deleteMsg = (m: Message) => {
-    if (m.userId !== me.id) return notify("🚩 Message flagged for room host");
-    setMessages((prev) => prev.filter((p) => p.id !== m.id));
-    emitEvent({ t: "del", id: m.id });
-    void syncRef.current?.deleteMessage(m.id);
-  };
-
-  const changeBotMode = (next: BotMode) => {
+  const toggleReaction = (m: Message, emoji: string) => {
     sounds.playPop();
+    const map = { ...(m.reactions || {}) };
+    const list = map[emoji] || [];
+    const next = list.includes(me.id)
+      ? list.filter((x) => x !== me.id)
+      : [...list, me.id];
+    if (next.length) map[emoji] = next;
+    else delete map[emoji];
+    commitMessageUpdate({ ...m, reactions: map });
+  };
+
+  const votePoll = (m: Message, optionId: string) => {
+    if (!m.poll) return;
+    sounds.playPop();
+    const poll: SquadPoll = {
+      ...m.poll,
+      options: m.poll.options.map((o) => ({
+        ...o,
+        votes:
+          o.id === optionId
+            ? o.votes.includes(me.id)
+              ? o.votes
+              : [...o.votes, me.id]
+            : o.votes.filter((v) => v !== me.id),
+      })),
+    };
+    commitMessageUpdate({ ...m, poll });
+  };
+
+  const createSquadPoll = () => {
+    const q = pollQuestion.trim();
+    const cleanOpts = pollOpts.map((o) => o.trim()).filter(Boolean);
+    if (!q || cleanOpts.length < 2) return;
+    const poll: SquadPoll = {
+      question: q,
+      createdBy: me.name,
+      options: cleanOpts.map((label) => ({ id: uid(), label, votes: [] })),
+    };
+    const created = publishMessage({ text: "", poll });
+    setShowPollModal(false);
+    setPollQuestion("");
+
+    activeBots.forEach((b, i) => {
+      window.setTimeout(() => {
+        const cur = messagesRef.current.find((x) => x.id === created.id);
+        if (!cur?.poll) return;
+        const pick =
+          cur.poll.options[Math.floor(Math.random() * cur.poll.options.length)];
+        commitMessageUpdate({
+          ...cur,
+          poll: {
+            ...cur.poll,
+            options: cur.poll.options.map((o) =>
+              o.id === pick.id && !o.votes.includes(b.id)
+                ? { ...o, votes: [...o.votes, b.id] }
+                : o
+            ),
+          },
+        });
+      }, 900 + i * 700);
+    });
+  };
+
+  const removeMessage = (id: string) => {
+    setMessages((cur) => cur.filter((m) => m.id !== id));
+    syncRef.current?.emit({ t: "del", id });
+    void syncRef.current?.deleteMessage(id);
+  };
+
+  const copyInviteLink = () => {
+    navigator.clipboard?.writeText(roomLink(room));
+    sounds.playClack();
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  };
+
+  const cycleBotMode = () => {
+    const next: BotMode =
+      botMode === "auto" ? "off" : botMode === "off" ? "on" : "auto";
     setBotMode(next);
     setBotModeState(next);
-    notify(
-      next === "off"
-        ? "👤 Humans-only mode — AI regulars hidden"
-        : next === "on"
-        ? "🤖 AI regulars active in this room"
-        : "✨ Smart mode — AI regulars step back when real friends join"
-    );
+    sounds.playClack();
   };
 
-  const saveProfileEdits = () => {
-    const clean = editName.trim().slice(0, 24) || me.name;
-    const updatedUser: User = {
-      ...me,
-      name: clean,
-      bio: editBio.trim().slice(0, 40) || STATUS_PRESETS[0],
-    };
-    onUpdateMe(updatedUser);
-    syncRef.current?.updateMyPresence(updatedUser);
-    sounds.playSuccess();
-    notify("✅ Profile updated live across room");
-  };
+  const slashSuggestions =
+    text.startsWith("/") && !text.includes(" ")
+      ? SLASH_COMMANDS.filter((s) => s.cmd.startsWith(text.toLowerCase()))
+      : [];
 
-  const typingNames = useMemo(
-    () =>
-      Object.entries(typing)
-        .filter(([id, v]) => id !== me.id && v.until > Date.now())
-        .map(([, v]) => v.name),
-    [typing, me.id]
+  const typingNames = Object.values(typingMap);
+  const canEndActiveGame = Boolean(
+    game && (game.startedBy === me.id || isLeader)
   );
 
-  const onlineCount = members.filter(isOnline).length;
-  const amHost =
-    activeHumans.find((h) => h.id === me.id)?.admin ||
-    game?.startedBy === me.name;
-
   return (
-    <div className="flex h-screen flex-col bg-slate-950 text-white selection:bg-violet-600 selection:text-white">
-      {/* Top Navbar */}
-      <header className="flex items-center gap-2 border-b border-white/10 bg-slate-900/95 px-3 py-2.5 backdrop-blur-xl sm:gap-3 sm:px-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-violet-600 via-indigo-600 to-teal-500 text-lg shadow-lg shadow-violet-950">
-          ⚡
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <h1 className="truncate font-black leading-tight text-white">
-              ChatArena
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#f7f5ee] text-[#111111]">
+      {/* Clean White/Cream + #111111 Top Command Header */}
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b-2 border-[#111111] bg-[#f3f0e6] px-3 py-2.5 sm:px-5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-[#111111] bg-[#ffe500] text-lg shadow-[2px_2px_0px_#111111]">
+            🎮
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h1 className="truncate font-mono text-sm font-black sm:text-base">
+              #{room}
             </h1>
-            <span className="rounded-lg bg-violet-500/20 px-2 py-0.5 font-mono text-xs font-bold text-violet-300">
-              /{room}
-            </span>
             <span
-              title={
+              className={`inline-flex items-center gap-1 rounded-md border-[1.5px] border-[#111111] px-2 py-0.5 font-mono text-[10px] font-black uppercase ${
                 syncStatus === "live"
-                  ? "Connected to Supabase Realtime — real cross-device sync active"
+                  ? "bg-[#bbf7d0]"
                   : syncStatus === "connecting"
-                  ? "Connecting to cloud sync…"
-                  : "Local tab sync mode"
-              }
-              className={`hidden items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold sm:inline-flex ${
-                syncStatus === "live"
-                  ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300"
-                  : syncStatus === "connecting"
-                  ? "border-amber-500/35 bg-amber-500/10 text-amber-200"
-                  : "border-slate-600 bg-slate-800 text-slate-300"
+                  ? "bg-[#fef9c3]"
+                  : "bg-white"
               }`}
             >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  syncStatus === "live"
-                    ? "bg-emerald-400 animate-pulse"
-                    : syncStatus === "connecting"
-                    ? "bg-amber-400 animate-pulse"
-                    : "bg-slate-400"
-                }`}
-              />
+              <span className="h-1.5 w-1.5 rounded-full bg-[#111111]" />
               {syncStatus === "live"
-                ? "Cloud Live"
+                ? "LIVE SYNC"
                 : syncStatus === "connecting"
-                ? "Syncing…"
-                : "Local Mode"}
+                ? "CONNECTING"
+                : "LOCAL"}
+            </span>
+            <span className="hidden rounded-md border-[1.5px] border-[#111111] bg-white px-2 py-0.5 font-mono text-[10px] font-black sm:inline-block">
+              {everyone.length} ONLINE
             </span>
           </div>
-          <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-            <span>
-              {activeHumans.length}{" "}
-              {activeHumans.length === 1 ? "person" : "people"} live
-              {botsActive ? ` · +${BOTS.length} AI squad` : ""}
-            </span>
-            {game && (
-              <span className="ml-1 truncate rounded bg-amber-500/20 px-1.5 font-bold text-amber-300">
-                🔒 {GAME_META[game.id].emoji} {GAME_META[game.id].name}
-              </span>
-            )}
-          </p>
         </div>
 
-        {/* Search & Plan */}
-        <button
-          onClick={() => {
-            sounds.playPop();
-            setSearchOpen("");
-          }}
-          title="Search trains, flights, movies, trips, weather & forex"
-          className="group flex items-center gap-1.5 rounded-2xl border border-teal-400/40 bg-gradient-to-r from-teal-500/20 to-teal-400/10 px-3 py-2 text-xs font-black text-teal-300 shadow-md transition hover:border-teal-400 hover:bg-teal-500/25 active:scale-95"
-        >
-          <span className="text-sm transition group-hover:scale-110">🔎</span>
-          <span className="hidden md:inline">Search &amp; Plan</span>
-        </button>
-
-        {/* Squad Arcade */}
-        <button
-          onClick={() => {
-            sounds.playPop();
-            setArcadeOpen(true);
-          }}
-          title="Open Squad Arcade — 15 multiplayer games"
-          className="rounded-2xl border border-amber-400/40 bg-amber-400/15 px-3 py-2 font-mono text-xs font-black text-amber-300 shadow-md transition hover:bg-amber-400/25 active:scale-95"
-        >
-          🎮 <span className="hidden sm:inline">Arcade</span>
-        </button>
-
-        {/* Share / Copy Invite Link */}
-        <button
-          onClick={copyLink}
-          className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-md transition hover:brightness-110 active:scale-95"
-        >
-          🔗<span className="ml-1 hidden sm:inline">Invite</span>
-        </button>
-
-        {/* Settings & Profile Menu */}
-        <div className="relative">
+        {/* Clean Pro Action Triggers */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
-            onClick={() => {
-              sounds.playPop();
-              setShowSettings((s) => !s);
-            }}
-            className="rounded-xl bg-slate-800/90 p-2 text-slate-300 hover:bg-slate-700 hover:text-white"
-            title="Profile & Room Settings"
+            type="button"
+            onClick={copyInviteLink}
+            title="Copy invite URL"
+            className="pro-btn hidden rounded-xl px-3 py-1.5 font-mono text-xs font-black uppercase md:inline-flex"
           >
-            ⚙️
+            {copied ? "✓ COPIED" : "🔗 INVITE"}
           </button>
-          {showSettings && (
-            <div className="absolute right-0 top-full z-40 mt-2 w-80 rounded-3xl border border-white/10 bg-slate-900 p-4 shadow-2xl backdrop-blur-xl">
-              {/* Quick Profile Editor */}
-              <div className="mb-3.5 border-b border-white/10 pb-3.5">
-                <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Your Live Profile
-                </p>
-                <div className="mb-2 flex items-center gap-2.5">
-                  <img
-                    src={me.avatar}
-                    alt={me.name}
-                    className="h-11 w-11 rounded-full border border-violet-400/50 object-cover"
-                  />
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      maxLength={24}
-                      placeholder="Display name"
-                      className="w-full rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1 text-xs font-bold text-white outline-none focus:border-violet-400"
-                    />
-                    <input
-                      value={editBio}
-                      onChange={(e) => setEditBio(e.target.value)}
-                      maxLength={36}
-                      placeholder="Status"
-                      className="w-full rounded-lg border border-white/10 bg-slate-950 px-2.5 py-1 text-[11px] text-slate-300 outline-none focus:border-violet-400"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-1.5">
-                  <div className="flex gap-1">
-                    {AVATAR_SEEDS.slice(0, 4).map((seed) => (
-                      <button
-                        key={seed}
-                        type="button"
-                        onClick={() => {
-                          const avatar = makeAvatar(editName || me.name, seed);
-                          const updated = { ...me, avatar };
-                          onUpdateMe(updated);
-                          syncRef.current?.updateMyPresence(updated);
-                        }}
-                        className="rounded-full border border-white/10 p-0.5 hover:border-violet-400"
-                      >
-                        <img
-                          src={makeAvatar(editName || me.name, seed)}
-                          alt=""
-                          className="h-6 w-6 rounded-full"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={saveProfileEdits}
-                    className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-violet-500"
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
 
-              {/* AI Squad Mode */}
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                AI Squad Regulars
-              </p>
-              <div className="mb-3 grid grid-cols-3 gap-1.5">
-                {(
-                  [
-                    ["auto", "Smart Auto"],
-                    ["on", "Always On"],
-                    ["off", "Humans Only"],
-                  ] as const
-                ).map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    onClick={() => changeBotMode(mode)}
-                    className={`rounded-xl py-1.5 text-[11px] font-bold transition ${
-                      botMode === mode
-                        ? "bg-teal-500 text-slate-950 shadow"
-                        : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+          <button
+            type="button"
+            onClick={() => setLibraryMode("lobby")}
+            className="pro-btn rounded-xl px-2.5 py-1.5 font-mono text-xs font-black uppercase sm:px-3"
+          >
+            ⚔️ <span className="hidden sm:inline">READY CHECK</span>
+          </button>
 
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                History Retention
-              </p>
-              <div className="mb-3 flex gap-1.5">
-                {RETENTION_OPTIONS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => {
-                      sounds.playPop();
-                      setRetentionDays(d);
-                      setRetention(d);
-                      notify(`History kept for ${d} days`);
-                    }}
-                    className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition ${
-                      retention === d
-                        ? "bg-violet-600 text-white shadow"
-                        : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                    }`}
-                  >
-                    {d} Days
-                  </button>
-                ))}
-              </div>
+          <button
+            type="button"
+            onClick={() => setLibraryMode("instant")}
+            className="pro-btn-accent rounded-xl px-3 py-1.5 font-mono text-xs font-black uppercase"
+          >
+            ▶ PLAY
+          </button>
 
-              <label className="mb-2.5 flex cursor-pointer items-center justify-between text-xs font-semibold text-slate-300">
-                <span>Sound Effects</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    sounds.enabled = !soundEnabled;
-                    setSoundEnabled(!soundEnabled);
-                  }}
-                  className={`h-6 w-11 rounded-full p-0.5 transition ${
-                    soundEnabled ? "bg-violet-600" : "bg-slate-700"
-                  }`}
-                >
-                  <span
-                    className={`block h-5 w-5 rounded-full bg-white transition ${
-                      soundEnabled ? "translate-x-5" : ""
-                    }`}
-                  />
-                </button>
-              </label>
+          <button
+            type="button"
+            onClick={() =>
+              setSearchQuery((cur) => (cur === null ? "" : null))
+            }
+            title="Open Intel Search"
+            className={`pro-btn rounded-xl px-2.5 py-1.5 font-mono text-xs font-black uppercase ${
+              searchQuery !== null ? "bg-[#bae6fd]" : ""
+            }`}
+          >
+            🔎 <span className="hidden lg:inline">INTEL</span>
+          </button>
 
-              <label className="flex cursor-pointer items-center justify-between text-xs font-semibold text-slate-300">
-                <span>Profanity Filter</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    sounds.playPop();
-                    setProfanityFilter(!profanity);
-                    setProfanity(!profanity);
-                  }}
-                  className={`h-6 w-11 rounded-full p-0.5 transition ${
-                    profanity ? "bg-violet-600" : "bg-slate-700"
-                  }`}
-                >
-                  <span
-                    className={`block h-5 w-5 rounded-full bg-white transition ${
-                      profanity ? "translate-x-5" : ""
-                    }`}
-                  />
-                </button>
-              </label>
+          <button
+            type="button"
+            onClick={() => {
+              sounds.enabled = !sounds.enabled;
+              setSoundEnabled(sounds.enabled);
+            }}
+            title={soundEnabled ? "Mute SFX" : "Unmute SFX"}
+            className="pro-btn rounded-xl px-2.5 py-1.5 text-xs font-black"
+          >
+            {soundEnabled ? "🔊" : "🔇"}
+          </button>
 
-              <button
-                onClick={onLeave}
-                className="mt-3.5 w-full rounded-2xl bg-rose-500/15 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/25"
-              >
-                Switch Profile / Leave Room
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="pro-btn rounded-xl px-2.5 py-1.5 text-xs font-black lg:hidden"
+          >
+            🏆
+          </button>
+
+          <button
+            type="button"
+            onClick={onLeave}
+            title="Exit lobby"
+            className="pro-btn rounded-xl px-2.5 py-1.5 font-mono text-xs font-black uppercase"
+          >
+            EXIT
+          </button>
         </div>
-
-        {/* Mobile Sidebar Toggle */}
-        <button
-          onClick={() => setShowSidebar((s) => !s)}
-          className="rounded-xl bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 lg:hidden"
-        >
-          👥
-        </button>
       </header>
 
-      {/* Main Layout */}
-      <div className="flex min-h-0 flex-1">
-        {/* Chat Stream */}
-        <main className="relative flex min-w-0 flex-1 flex-col">
+      {/* Active Minimized Match Banner */}
+      {game && gameHidden && (
+        <div className="flex items-center justify-between gap-2 border-b-2 border-[#111111] bg-[#ffe500] px-4 py-2 text-xs font-black">
+          <span>
+            {GAME_META[game.id].emoji} LIVE MATCH: {GAME_META[game.id].name} ·{" "}
+            {game.players.length} PLAYERS
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setGameHidden(false)}
+              className="pro-btn rounded-lg px-3 py-1 font-mono text-[11px] font-black uppercase"
+            >
+              REJOIN →
+            </button>
+            {canEndActiveGame && (
+              <button
+                onClick={abortGame}
+                className="pro-btn rounded-lg px-2 py-1 text-xs font-black"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Split Layout */}
+      <div className="relative flex min-h-0 flex-1">
+        {/* Left: Crisp Chat Stream + Pro Composer */}
+        <main className="pro-grid-bg flex min-w-0 flex-1 flex-col">
           <div
             ref={listRef}
-            onScroll={onScroll}
-            onClick={() => setReactFor(null)}
-            className="chat-scroll flex-1 space-y-1 overflow-y-auto px-3 py-4 sm:px-6"
+            className="chat-scroll flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-6"
           >
-            {messages.length === 0 && (
-              <div className="flex h-full flex-col items-center justify-center gap-3 py-12 text-center text-slate-500">
-                <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-white/10 bg-slate-900 text-3xl shadow-inner">
-                  💬
-                </div>
-                <div>
-                  <p className="text-base font-bold text-slate-200">
-                    Room /{room} is open &amp; live
-                  </p>
-                  <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-slate-400">
-                    Copy the invite link so teammates join from any phone or laptop · Type{" "}
-                    <b className="font-mono text-amber-300">GAME</b> for a live round · Use{" "}
-                    <b className="text-violet-300">🗳️ Poll</b> or{" "}
-                    <b className="text-teal-300">🔎 Search</b> to decide plans together.
-                  </p>
-                </div>
-              </div>
-            )}
+            {messages.map((m) => {
+              if (m.kind === "system") {
+                return (
+                  <div key={m.id} className="msg-in flex justify-center">
+                    <span className="rounded-lg border-[1.5px] border-[#111111] bg-[#efece2] px-3 py-1 text-center font-mono text-[11px] font-bold text-zinc-800">
+                      {m.text}
+                    </span>
+                  </div>
+                );
+              }
 
-            {messages.map((m, i) => {
-              const prev = messages[i - 1];
-              const dayChanged = !prev || fmtDay(prev.ts) !== fmtDay(m.ts);
-              const grouped =
-                !dayChanged &&
-                prev &&
-                prev.kind === "chat" &&
-                m.kind === "chat" &&
-                prev.userId === m.userId &&
-                m.ts - prev.ts < 120_000;
+              const mine = m.userId === me.id;
+              const isBotMsg = BOTS.some((b) => b.id === m.userId);
+              const tier = getRankTier(m.senderElo ?? 1000);
+              const totalVotes =
+                m.poll?.options.reduce((s, o) => s + o.votes.length, 0) || 0;
+              const reactionEntries = Object.entries(m.reactions || {});
+              const seenCount = (m.seenBy || []).filter(
+                (id) => id !== m.userId
+              ).length;
 
               return (
                 <div
                   key={m.id}
-                  id={"msg-" + m.id}
-                  className={highlightedId === m.id ? "reply-flash" : ""}
+                  className={`msg-in group flex items-start gap-2.5 ${
+                    mine ? "flex-row-reverse" : ""
+                  }`}
                 >
-                  {dayChanged && (
-                    <div className="my-4 flex items-center gap-3">
-                      <div className="h-px flex-1 bg-white/10" />
-                      <span className="rounded-full border border-white/10 bg-slate-900 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        {fmtDay(m.ts)}
-                      </span>
-                      <div className="h-px flex-1 bg-white/10" />
-                    </div>
-                  )}
-                  <MessageRow
-                    m={m}
-                    meName={me.name}
-                    mine={m.userId === me.id}
-                    grouped={Boolean(grouped)}
-                    onDelete={() => deleteMsg(m)}
-                    onReply={() => {
-                      setEditingMsg(null);
-                      setReplyingTo({
-                        id: m.id,
-                        userId: m.userId,
-                        name: m.name,
-                        preview:
-                          m.text?.slice(0, 80) ||
-                          (m.poll
-                            ? `📊 ${m.poll.question}`
-                            : m.card
-                            ? `${m.card.icon} ${m.card.query}`
-                            : m.attachment
-                            ? `📎 ${m.attachment.name}`
-                            : "Message"),
-                      });
-                      composerRef.current?.focus();
-                    }}
-                    onEdit={
-                      m.userId === me.id && m.kind === "chat" && m.text
-                        ? () => {
-                            setReplyingTo(null);
-                            setEditingMsg(m);
-                            setInput(m.text || "");
-                            composerRef.current?.focus();
-                          }
-                        : undefined
+                  <img
+                    src={
+                      m.avatar ||
+                      everyone.find((u) => u.id === m.userId)?.avatar ||
+                      me.avatar
                     }
-                    onJumpReply={(targetId) => jumpToMessage(targetId)}
-                    onReact={(e) => react(m, e)}
-                    onVotePoll={(optId, kind) =>
-                      voteOnMessagePoll(m, optId, kind)
-                    }
-                    pickerOpen={reactFor === m.id}
-                    togglePicker={() =>
-                      setReactFor(reactFor === m.id ? null : m.id)
-                    }
+                    alt={m.name}
+                    className="mt-0.5 h-9 w-9 shrink-0 rounded-full border-2 border-[#111111] bg-white object-cover"
                   />
+
+                  <div
+                    className={`flex max-w-[84%] flex-col sm:max-w-[72%] ${
+                      mine ? "items-end" : "items-start"
+                    }`}
+                  >
+                    {/* Sender + ELO Tier Badge + Timestamp */}
+                    <div
+                      className={`mb-1 flex flex-wrap items-center gap-1.5 text-[11px] ${
+                        mine ? "flex-row-reverse" : ""
+                      }`}
+                    >
+                      <span className="font-black text-[#111111]">
+                        {mine ? "You" : m.name}
+                      </span>
+                      <span
+                        style={{
+                          backgroundColor: tier.bg,
+                          color: tier.text,
+                        }}
+                        className="rounded border border-[#111111] px-1.5 font-mono text-[10px] font-black"
+                      >
+                        {tier.short} · {m.senderElo ?? 1000}
+                      </span>
+                      {isBotMsg && (
+                        <span className="rounded border border-[#111111] bg-white px-1.5 font-mono text-[9px] font-black">
+                          AI
+                        </span>
+                      )}
+                      <span className="font-mono text-[10px] text-zinc-500">
+                        {formatClock(m.ts)}
+                      </span>
+                      {m.editedAt && (
+                        <span className="font-mono text-[10px] text-zinc-400">
+                          (edited)
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Crisp #111111 Bordered Message Card */}
+                    <div
+                      className={`relative rounded-2xl border-2 border-[#111111] px-3.5 py-2.5 shadow-[3px_3px_0px_#111111] ${
+                        mine ? "bg-[#fffef7]" : "bg-white"
+                      }`}
+                    >
+                      {m.replyTo && (
+                        <div className="mb-2 rounded-lg border-[1.5px] border-[#111111] bg-[#f3f0e6] px-2.5 py-1 text-xs">
+                          <span className="font-black text-[#111111]">
+                            ↩ {m.replyTo.name}:{" "}
+                          </span>
+                          <span className="text-zinc-700">
+                            {m.replyTo.preview}
+                          </span>
+                        </div>
+                      )}
+
+                      {m.text && (
+                        <p className="whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-[#111111]">
+                          {m.text}
+                        </p>
+                      )}
+
+                      {m.attachment && m.attachment.url && (
+                        <img
+                          src={m.attachment.url}
+                          alt={m.attachment.name}
+                          className={
+                            m.attachment.type === "gif"
+                              ? "mt-1 max-h-40 rounded-xl object-contain"
+                              : "mt-2 max-h-64 rounded-xl border-2 border-[#111111] object-cover"
+                          }
+                        />
+                      )}
+
+                      {m.card && (
+                        <div className="mt-1 w-72 sm:w-96">
+                          <SearchCardView
+                            card={m.card}
+                            meName={me.name}
+                            onVotePoll={(optionId) => {
+                              if (!m.card?.poll) return;
+                              const nextPoll = m.card.poll.map((o) => ({
+                                ...o,
+                                votes:
+                                  o.id === optionId
+                                    ? o.votes.includes(me.name)
+                                      ? o.votes.filter((n) => n !== me.name)
+                                      : [...o.votes, me.name]
+                                    : o.votes.filter((n) => n !== me.name),
+                              }));
+                              commitMessageUpdate({
+                                ...m,
+                                card: { ...m.card, poll: nextPoll },
+                              });
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Interactive Ready-Check Lobby Card */}
+                      {m.lobby && (
+                        <div className="w-64 sm:w-80">
+                          <div className="flex items-center justify-between border-b-2 border-[#111111] pb-2">
+                            <span className="rounded border border-[#111111] bg-[#ffe500] px-2 py-0.5 font-mono text-[10px] font-black uppercase">
+                              ⚔️ READY CHECK
+                            </span>
+                            <span className="font-mono text-[11px] font-black text-zinc-600">
+                              {m.lobby.readyNames.length} READY
+                            </span>
+                          </div>
+                          <div className="mt-2.5 flex items-center gap-2.5">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[#111111] bg-[#f7f5ee] text-xl">
+                              {GAME_META[m.lobby.gameId]?.emoji || "🎮"}
+                            </span>
+                            <div>
+                              <p className="text-sm font-black text-[#111111]">
+                                {GAME_META[m.lobby.gameId]?.name ||
+                                  m.lobby.gameId}
+                              </p>
+                              <p className="text-xs text-zinc-600">
+                                Host: {m.lobby.hostName}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {m.lobby.readyNames.map((rName) => (
+                              <span
+                                key={rName}
+                                className="rounded-lg border-[1.5px] border-[#111111] bg-[#bbf7d0] px-2 py-0.5 font-mono text-[11px] font-black"
+                              >
+                                ✓ {rName}
+                              </span>
+                            ))}
+                          </div>
+
+                          {!m.lobby.launched ? (
+                            <div className="mt-3 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleLobbyReady(m)}
+                                className="pro-btn flex-1 rounded-xl py-1.5 font-mono text-xs font-black uppercase"
+                              >
+                                {m.lobby.readyNames.includes(me.name)
+                                  ? "✓ READY"
+                                  : "READY UP"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => launchFromLobby(m)}
+                                className="pro-btn-accent flex-1 rounded-xl py-1.5 font-mono text-xs font-black uppercase"
+                              >
+                                ▶ START
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="mt-2.5 rounded-lg border border-[#111111] bg-[#f3f0e6] py-1 text-center font-mono text-[11px] font-black uppercase">
+                              MATCH LAUNCHED
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Post-Match Result + ELO Delta + 1-Click Rematch Card */}
+                      {m.matchResult && (
+                        <div className="w-64 sm:w-80">
+                          <div className="flex items-center justify-between border-b-2 border-[#111111] pb-2">
+                            <span className="font-mono text-xs font-black uppercase">
+                              {GAME_META[m.matchResult.gameId]?.emoji || "🏆"}{" "}
+                              {GAME_META[m.matchResult.gameId]?.name ||
+                                m.matchResult.gameId}
+                            </span>
+                            {typeof m.matchResult.eloDelta === "number" && (
+                              <span
+                                className={`rounded border border-[#111111] px-2 py-0.5 font-mono text-[10px] font-black ${
+                                  m.matchResult.eloDelta >= 0
+                                    ? "bg-[#bbf7d0]"
+                                    : "bg-[#fecaca]"
+                                }`}
+                              >
+                                {m.matchResult.eloDelta >= 0
+                                  ? `+${m.matchResult.eloDelta} ELO ▲`
+                                  : `${m.matchResult.eloDelta} ELO ▼`}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-2 text-xs font-bold text-zinc-800">
+                            {m.matchResult.summary}
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {m.matchResult.standings.map((s, idx) => (
+                              <div
+                                key={s.name + idx}
+                                className={`flex items-center justify-between rounded-lg border border-[#111111] px-2.5 py-1 text-xs font-bold ${
+                                  idx === 0 ? "bg-[#ffe500]" : "bg-[#f7f5ee]"
+                                }`}
+                              >
+                                <span>
+                                  #{idx + 1} {s.name} {idx === 0 ? "👑" : ""}
+                                </span>
+                                <span className="font-mono font-black">
+                                  {s.score} PTS
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => launchGame(m.matchResult!.gameId)}
+                            className="pro-btn-accent mt-2.5 w-full rounded-xl py-1.5 font-mono text-xs font-black uppercase"
+                          >
+                            ↻ REMATCH
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Live Squad Poll Card */}
+                      {m.poll && (
+                        <div className="mt-1 w-64 space-y-2 sm:w-76">
+                          <p className="text-sm font-black text-[#111111]">
+                            📊 {m.poll.question}
+                          </p>
+                          {m.poll.options.map((opt) => {
+                            const pct = totalVotes
+                              ? Math.round(
+                                  (opt.votes.length / totalVotes) * 100
+                                )
+                              : 0;
+                            const picked = opt.votes.includes(me.id);
+                            return (
+                              <button
+                                key={opt.id}
+                                onClick={() => votePoll(m, opt.id)}
+                                className={`relative block w-full overflow-hidden rounded-xl border-2 border-[#111111] px-3 py-1.5 text-left text-xs font-bold transition ${
+                                  picked ? "bg-[#ffe500]" : "bg-[#f7f5ee]"
+                                }`}
+                              >
+                                <span className="relative flex justify-between">
+                                  <span>
+                                    {picked ? "✓ " : ""}
+                                    {opt.label}
+                                  </span>
+                                  <span className="font-mono font-black">
+                                    {pct}%
+                                  </span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Delivery / Seen Receipt */}
+                      {mine && (
+                        <div className="mt-1 flex justify-end">
+                          <span
+                            className={`font-mono text-[10px] font-black ${
+                              seenCount > 0 || activeBots.length > 0
+                                ? "text-[#16a34a]"
+                                : "text-zinc-400"
+                            }`}
+                          >
+                            ✓✓
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Hover Quick Action Bar */}
+                      <div
+                        className={`absolute -top-3 ${
+                          mine ? "left-2" : "right-2"
+                        } hidden items-center gap-0.5 rounded-lg border-[1.5px] border-[#111111] bg-white px-1 py-0.5 shadow-[2px_2px_0px_#111111] group-hover:flex`}
+                      >
+                        {QUICK_REACTIONS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => toggleReaction(m, emoji)}
+                            className="rounded px-1 text-xs hover:bg-[#ffe500]"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setReplyTo(m)}
+                          title="Reply"
+                          className="rounded px-1.5 font-mono text-[10px] font-black hover:bg-[#ffe500]"
+                        >
+                          ↩
+                        </button>
+                        {mine && m.text && (
+                          <button
+                            onClick={() => {
+                              setEditingId(m.id);
+                              setText(m.text || "");
+                            }}
+                            title="Edit"
+                            className="rounded px-1 font-mono text-[10px] font-black hover:bg-[#ffe500]"
+                          >
+                            ✎
+                          </button>
+                        )}
+                        {mine && (
+                          <button
+                            onClick={() => removeMessage(m.id)}
+                            title="Delete"
+                            className="rounded px-1 font-mono text-[10px] font-black text-[#dc2626] hover:bg-[#fecaca]"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Reaction Pills */}
+                    {reactionEntries.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {reactionEntries.map(([emoji, users]) => (
+                          <button
+                            key={emoji}
+                            onClick={() => toggleReaction(m, emoji)}
+                            className={`flex items-center gap-1 rounded-lg border-[1.5px] border-[#111111] px-2 py-0.5 text-xs font-black ${
+                              users.includes(me.id)
+                                ? "bg-[#ffe500]"
+                                : "bg-white"
+                            }`}
+                          >
+                            <span>{emoji}</span>
+                            <span className="font-mono text-[10px]">
+                              {users.length}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
 
             {typingNames.length > 0 && (
-              <div className="flex items-center gap-2 px-3 pt-1.5 text-xs text-slate-400">
-                <span className="flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 border border-white/10">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="typing-dot h-1.5 w-1.5 rounded-full bg-teal-400"
-                      style={{ animationDelay: `${i * 0.15}s` }}
-                    />
-                  ))}
+              <div className="flex items-center gap-2 font-mono text-xs font-bold text-zinc-600">
+                <span className="flex gap-1 rounded-lg border border-[#111111] bg-white px-2.5 py-1.5">
+                  <span className="typing-dot h-1.5 w-1.5 rounded-full bg-[#111111]" />
+                  <span className="typing-dot h-1.5 w-1.5 rounded-full bg-[#111111]" />
+                  <span className="typing-dot h-1.5 w-1.5 rounded-full bg-[#111111]" />
                 </span>
-                <span>
-                  <b className="text-slate-300">{typingNames.join(", ")}</b>{" "}
-                  {typingNames.length === 1 ? "is" : "are"} typing…
-                </span>
+                <span>{typingNames.join(", ")} typing…</span>
               </div>
             )}
           </div>
 
-          {unread > 0 && (
-            <button
-              onClick={() => {
-                sounds.playPop();
-                listRef.current?.scrollTo({
-                  top: listRef.current.scrollHeight,
-                  behavior: "smooth",
-                });
-                setUnread(0);
-              }}
-              className="absolute bottom-32 left-1/2 z-30 -translate-x-1/2 rounded-full bg-violet-600 px-5 py-2 text-xs font-black shadow-2xl transition hover:bg-violet-500 active:scale-95"
-            >
-              ↓ {unread} new message{unread > 1 ? "s" : ""}
-            </button>
-          )}
-
-          {/* Slash Commands Menu */}
-          {slashMenu && (
-            <div className="absolute bottom-24 left-4 z-40 w-80 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-xl sm:left-6">
-              <p className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                Quick Commands
-              </p>
-              <div className="max-h-60 space-y-0.5 overflow-y-auto">
-                {filteredSlash.map((s, idx) => (
-                  <button
-                    key={s.cmd}
-                    onClick={() => handleSlashSelect(s.cmd)}
-                    className={`flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-left transition ${
-                      idx === slashIdx
-                        ? "bg-violet-600 text-white"
-                        : "text-slate-300 hover:bg-slate-800"
-                    }`}
-                  >
-                    <span className="text-lg">{s.icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold">{s.label}</p>
-                      <p className="truncate text-[10px] text-slate-400">
-                        {s.desc}
-                      </p>
-                    </div>
-                    <span className="font-mono text-[10px] opacity-75">
-                      {s.cmd}
-                    </span>
-                  </button>
-                ))}
+          {/* Reply / Edit / Image Attachment Bar */}
+          {(replyTo || editingId || pendingAttachment) && (
+            <div className="flex items-center gap-3 border-t-2 border-[#111111] bg-[#fef9c3] px-4 py-2 text-xs font-bold">
+              {pendingAttachment?.url && (
+                <img
+                  src={pendingAttachment.url}
+                  alt="Preview"
+                  className="h-10 w-10 rounded-lg border-2 border-[#111111] object-cover"
+                />
+              )}
+              <div className="min-w-0 flex-1 truncate">
+                {editingId
+                  ? "Editing message"
+                  : replyTo
+                  ? `Replying to ${replyTo.name}: ${replyTo.text || "Shared card"}`
+                  : `Attached: ${pendingAttachment?.name}`}
               </div>
-            </div>
-          )}
-
-          {/* Composer Bar */}
-          <div className="border-t border-white/10 bg-slate-900/95 px-3 pb-3 pt-2.5 backdrop-blur-xl sm:px-6">
-            {game ? (
-              <div className="flex items-center justify-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 py-3 text-sm font-bold text-amber-300 shadow-inner">
-                🔒 Main chat locked during live round: {GAME_META[game.id].emoji}{" "}
-                {GAME_META[game.id].name}
-              </div>
-            ) : (
-              <>
-                {/* Reply / Edit Context Banner */}
-                {(replyingTo || editingMsg) && (
-                  <div className="mb-2 flex items-center justify-between gap-2 rounded-2xl border border-violet-500/30 bg-slate-950/90 px-3.5 py-2 text-xs">
-                    <div className="min-w-0 border-l-2 border-violet-400 pl-2.5">
-                      <p className="font-bold text-violet-300">
-                        {editingMsg
-                          ? "✏️ Editing your message"
-                          : `↩ Replying to ${replyingTo?.name}`}
-                      </p>
-                      <p className="truncate text-slate-400">
-                        {editingMsg ? editingMsg.text : replyingTo?.preview}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setReplyingTo(null);
-                        if (editingMsg) {
-                          setEditingMsg(null);
-                          setInput("");
-                        }
-                      }}
-                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-
-                <div className="relative flex items-end gap-1">
-                  {picker === "emoji" && (
-                    <EmojiPicker
-                      onPick={(e) => setInput((v) => v + e)}
-                      onClose={() => setPicker(null)}
-                    />
-                  )}
-                  {picker === "gif" && (
-                    <GifPicker
-                      onClose={() => setPicker(null)}
-                      onPick={(urlOrId, label) => {
-                        setPicker(null);
-                        const finalUrl =
-                          urlOrId.startsWith("data:") || urlOrId.startsWith("http")
-                            ? urlOrId
-                            : gifUrl(urlOrId);
-                        sendAttachment({
-                          type: "gif",
-                          name: label,
-                          url: finalUrl,
-                          mime: finalUrl.startsWith("data:image/svg")
-                            ? "image/svg+xml"
-                            : "image/gif",
-                        });
-                      }}
-                    />
-                  )}
-                  {picker === "sound" && (
-                    <SoundboardPicker
-                      onClose={() => setPicker(null)}
-                      onTrigger={(soundId, label, shoutout) => {
-                        setPicker(null);
-                        triggerSoundDrop(soundId, label, shoutout);
-                      }}
-                    />
-                  )}
-
-                  <IconBtn
-                    active={picker === "emoji"}
-                    onClick={() =>
-                      setPicker(picker === "emoji" ? null : "emoji")
-                    }
-                    title="Desi & All Emojis"
-                  >
-                    😀
-                  </IconBtn>
-                  <IconBtn
-                    active={picker === "gif"}
-                    onClick={() => setPicker(picker === "gif" ? null : "gif")}
-                    title="देसी मीम स्टीकर & GIFs"
-                  >
-                    <span className="text-[10px] font-black text-amber-300">मीम</span>
-                  </IconBtn>
-                  <IconBtn
-                    active={picker === "sound"}
-                    onClick={() =>
-                      setPicker(picker === "sound" ? null : "sound")
-                    }
-                    title="लाइव देसी साउंडबोर्ड (हॉर्न, ढोल, नागिन, IPL, चाय)"
-                  >
-                    📯
-                  </IconBtn>
-                  <IconBtn
-                    onClick={() => fileRef.current?.click()}
-                    title="Share Image or File"
-                  >
-                    📎
-                  </IconBtn>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    hidden
-                    onChange={(e) => {
-                      onFile(e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                  <IconBtn
-                    onClick={() => setPollModalOpen(true)}
-                    title="Create Live Squad Poll"
-                  >
-                    🗳️
-                  </IconBtn>
-                  <IconBtn
-                    active={dictating}
-                    onClick={toggleDictation}
-                    title="Voice Dictation"
-                  >
-                    {dictating ? "🔴" : "🗣️"}
-                  </IconBtn>
-
-                  {recording ? (
-                    <div className="flex flex-1 items-center gap-3 rounded-2xl border border-rose-500/50 bg-rose-500/10 px-4 py-2.5">
-                      <span className="h-3 w-3 animate-pulse rounded-full bg-rose-500" />
-                      <span className="font-mono text-sm font-bold text-rose-300">
-                        Voice Note · 0:{String(recSecs).padStart(2, "0")}
-                      </span>
-                      <button
-                        onClick={toggleRecording}
-                        className="ml-auto rounded-xl bg-rose-600 px-3.5 py-1 text-xs font-bold text-white hover:bg-rose-500"
-                      >
-                        ■ Send
-                      </button>
-                    </div>
-                  ) : (
-                    <textarea
-                      ref={composerRef}
-                      value={input}
-                      onChange={(e) => onTyping(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (slashMenu && filteredSlash.length > 0) {
-                          if (e.key === "ArrowDown") {
-                            e.preventDefault();
-                            setSlashIdx((i) => (i + 1) % filteredSlash.length);
-                            return;
-                          }
-                          if (e.key === "ArrowUp") {
-                            e.preventDefault();
-                            setSlashIdx(
-                              (i) =>
-                                (i - 1 + filteredSlash.length) %
-                                filteredSlash.length
-                            );
-                            return;
-                          }
-                          if (e.key === "Tab") {
-                            e.preventDefault();
-                            handleSlashSelect(filteredSlash[slashIdx].cmd);
-                            return;
-                          }
-                        }
-                        if (e.key === "Escape") {
-                          setSlashMenu(false);
-                          setReplyingTo(null);
-                          setEditingMsg(null);
-                          return;
-                        }
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          send();
-                        }
-                      }}
-                      rows={1}
-                      placeholder={
-                        dictating
-                          ? "Listening… speak now 🎤"
-                          : PLACEHOLDERS[phIdx]
-                      }
-                      className="max-h-28 min-h-[44px] flex-1 resize-none rounded-2xl border border-white/10 bg-slate-800/90 px-4 py-2.5 text-[15px] placeholder-slate-500 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20"
-                    />
-                  )}
-
-                  <IconBtn
-                    active={recording}
-                    onClick={toggleRecording}
-                    title="Record Voice Note"
-                  >
-                    🎤
-                  </IconBtn>
-                  <button
-                    onClick={send}
-                    disabled={!input.trim()}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-teal-500 text-lg text-white shadow-lg shadow-violet-950 transition hover:brightness-110 active:scale-95 disabled:opacity-40"
-                  >
-                    {editingMsg ? "✓" : "➤"}
-                  </button>
-                </div>
-
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <p className="hidden truncate text-[11px] text-slate-400 sm:block">
-                    💡 <span className="font-mono font-bold text-amber-300">GAME</span> starts a round ·{" "}
-                    <span className="font-mono font-bold text-violet-300">/poll</span> creates a live vote ·{" "}
-                    <span className="font-mono font-bold text-teal-300">?</span> previews web answers
-                  </p>
-                  <button
-                    onClick={() => {
-                      sounds.playPop();
-                      setSummary(summarize(messages));
-                    }}
-                    className="ml-auto shrink-0 rounded-xl border border-violet-500/35 bg-violet-500/10 px-3 py-1 text-xs font-bold text-violet-300 transition hover:bg-violet-500/20 active:scale-95"
-                  >
-                    ✨ Recap Chat
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </main>
-
-        {/* Right Sidebar: Share Link, Room Switcher, Roster & Bot Toggle */}
-        <aside
-          className={`${
-            showSidebar
-              ? "fixed inset-y-0 right-0 z-40 flex w-72 shadow-2xl"
-              : "hidden"
-          } flex-col border-l border-white/10 bg-slate-900/95 backdrop-blur-xl lg:static lg:flex lg:w-72`}
-        >
-          <div className="border-b border-white/10 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Live Invite Link
-              </p>
               <button
-                onClick={() => setShowSidebar(false)}
-                className="text-slate-400 hover:text-white lg:hidden"
+                onClick={() => {
+                  setReplyTo(null);
+                  setEditingId(null);
+                  setPendingAttachment(null);
+                }}
+                className="pro-btn rounded-lg px-2 py-0.5 text-xs font-black"
               >
                 ✕
               </button>
             </div>
-            <button
-              onClick={copyLink}
-              className="w-full truncate rounded-2xl border border-teal-500/30 bg-slate-950/80 px-3 py-2 text-left font-mono text-xs font-semibold text-teal-300 transition hover:border-teal-400"
-            >
-              🔗 {displayHost()}/{room}
-            </button>
-            <p className="mt-1.5 text-[11px] leading-snug text-slate-400">
-              Open this link on any phone or laptop — real players sync messages, polls &amp; games live.
-            </p>
+          )}
 
-            {/* Quick Room Jump */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const target = normalizeRoomSlug(roomInput);
-                if (target !== room) {
-                  sounds.playPop();
-                  onSwitchRoom(target);
-                  setShowSidebar(false);
-                }
-              }}
-              className="mt-3 flex gap-1.5"
-            >
-              <input
-                value={roomInput}
-                onChange={(e) => setRoomInput(e.target.value)}
-                maxLength={24}
-                placeholder="Switch room…"
-                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-2.5 py-1.5 font-mono text-xs text-white outline-none focus:border-violet-400"
+          {/* Pro Gamer Composer Footer */}
+          <div className="relative border-t-2 border-[#111111] bg-[#f3f0e6] px-3 py-2.5 sm:px-5">
+            {/* Slash Autocomplete Menu */}
+            {slashSuggestions.length > 0 && (
+              <div className="pro-card absolute bottom-full left-4 right-4 mb-2 max-w-md overflow-hidden rounded-xl bg-white">
+                {slashSuggestions.map((s) => (
+                  <button
+                    key={s.cmd}
+                    onClick={() => {
+                      if (s.game) {
+                        setText("");
+                        launchGame(s.game);
+                      } else if (s.callout) {
+                        publishMessage({ text: s.callout });
+                        setText("");
+                      } else {
+                        setText(`${s.cmd} `);
+                      }
+                    }}
+                    className="flex w-full items-center justify-between border-b border-zinc-200 px-3.5 py-2 text-left text-xs hover:bg-[#ffe500]"
+                  >
+                    <span className="font-mono font-black text-[#111111]">
+                      {s.cmd}
+                    </span>
+                    <span className="font-semibold text-zinc-600">
+                      {s.desc}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {showEmoji && (
+              <EmojiPicker
+                onPick={(e) => setText((t) => t + e)}
+                onClose={() => setShowEmoji(false)}
               />
-              <button
-                type="submit"
-                className="rounded-xl bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-violet-300 hover:bg-slate-700"
-              >
-                Go
-              </button>
-            </form>
-          </div>
+            )}
 
-          {/* Roster */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                In Room ({onlineCount}/20)
-              </p>
+            {showStickers && (
+              <GifPicker
+                onPick={(url, label) => {
+                  publishMessage({
+                    text: "",
+                    attachment: {
+                      type: "gif",
+                      name: label,
+                      url,
+                      mime: url.startsWith("data:image/svg")
+                        ? "image/svg+xml"
+                        : "image/gif",
+                    },
+                  });
+                  setShowStickers(false);
+                  triggerSmartBotReply("");
+                }}
+                onClose={() => setShowStickers(false)}
+              />
+            )}
+
+            {showSfx && (
+              <SoundboardPicker
+                onTrigger={(soundId, _label, shoutout) => {
+                  sounds.playSoundDrop(soundId);
+                  syncRef.current?.emit({ t: "sound", soundId, by: me.id });
+                  publishMessage({ kind: "system", text: shoutout });
+                  setShowSfx(false);
+                }}
+                onClose={() => setShowSfx(false)}
+              />
+            )}
+
+            {/* 1-Click Quick Gamer Callouts */}
+            <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              <span className="shrink-0 font-mono text-[10px] font-black uppercase text-zinc-500">
+                CALLOUTS:
+              </span>
+              {CALLOUT_CHIPS.map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  onClick={() => {
+                    sounds.playSend();
+                    publishMessage({ text: c.text });
+                    triggerSmartBotReply(c.text);
+                  }}
+                  className="shrink-0 rounded-lg border-[1.5px] border-[#111111] bg-white px-2.5 py-0.5 font-mono text-[10px] font-black hover:bg-[#ffe500]"
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Clean Input Row */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  changeBotMode(botMode === "off" ? "auto" : "off")
-                }
-                className="rounded-lg bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300 hover:bg-slate-700"
+                onClick={() => {
+                  setShowStickers(false);
+                  setShowSfx(false);
+                  setShowEmoji((v) => !v);
+                }}
+                title="Emojis"
+                className="pro-btn rounded-xl px-2.5 py-2 text-sm"
               >
-                {botsActive ? "Hide Bots" : "+ Solo Bots"}
+                😀
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmoji(false);
+                  setShowSfx(false);
+                  setShowStickers((v) => !v);
+                }}
+                title="Callout Stamps & GIFs"
+                className="pro-btn rounded-xl px-2.5 py-2 text-sm"
+              >
+                🏷️
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmoji(false);
+                  setShowStickers(false);
+                  setShowSfx((v) => !v);
+                }}
+                title="Room SFX Ping"
+                className="pro-btn hidden rounded-xl px-2.5 py-2 text-sm sm:inline-flex"
+              >
+                🔔
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPollModal(true)}
+                title="Create Poll"
+                className="pro-btn hidden rounded-xl px-2.5 py-2 text-sm sm:inline-flex"
+              >
+                📊
+              </button>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                title="Upload Screenshot / Image"
+                className="pro-btn hidden rounded-xl px-2.5 py-2 text-sm sm:inline-flex"
+              >
+                📷
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const dataUrl = await resizeUploadImage(file, 760);
+                    setPendingAttachment({
+                      type: "image",
+                      name: file.name,
+                      url: dataUrl,
+                      mime: "image/jpeg",
+                    });
+                  }
+                  e.target.value = "";
+                }}
+              />
+
+              <input
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  if (Date.now() - lastTypingSent.current > 1800) {
+                    lastTypingSent.current = Date.now();
+                    syncRef.current?.emit({
+                      t: "typing",
+                      uid: me.id,
+                      name: me.name,
+                      until: Date.now() + 2600,
+                    });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={`Message #${room} or type /aim, /duel, /connect4…`}
+                className="pro-input min-w-0 flex-1 rounded-xl px-3.5 py-2 text-sm font-semibold"
+              />
+
+              <button
+                type="button"
+                onClick={handleSend}
+                className="pro-btn-dark shrink-0 rounded-xl px-4 py-2 font-mono text-xs font-black uppercase"
+              >
+                {editingId ? "SAVE" : "SEND"}
+              </button>
+            </div>
+          </div>
+        </main>
+
+        {/* Right Pro Sidebar: Rank Card + Standings / Roster */}
+        <aside
+          className={`${
+            sidebarOpen
+              ? "fixed inset-y-0 right-0 z-30 flex"
+              : "hidden lg:flex"
+          } w-72 shrink-0 flex-col border-l-2 border-[#111111] bg-[#f3f0e6]`}
+        >
+          {/* Player Rank & Stats Card */}
+          <div className="border-b-2 border-[#111111] bg-white p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <img
+                  src={me.avatar}
+                  alt={me.name}
+                  className="h-10 w-10 rounded-full border-2 border-[#111111] object-cover"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black">{me.name}</p>
+                  <p className="font-mono text-[10px] font-bold text-zinc-500">
+                    {me.bio || "Competitive"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="pro-btn rounded-lg px-2 py-1 text-xs font-black lg:hidden"
+              >
+                ✕
               </button>
             </div>
 
-            <div className="space-y-2">
-              {members.map((m) => (
+            <div
+              className="mt-3 flex items-center justify-between rounded-xl border-2 border-[#111111] px-3 py-1.5"
+              style={{ backgroundColor: myTier.bg, color: myTier.text }}
+            >
+              <span className="font-mono text-xs font-black uppercase">
+                ◆ {myTier.label}
+              </span>
+              <span className="font-mono text-xs font-black">
+                {stats.elo} ELO
+              </span>
+            </div>
+
+            <div className="mt-2">
+              <div className="flex justify-between font-mono text-[10px] font-bold text-zinc-500">
+                <span>
+                  W: {stats.wins} · M: {stats.matches}
+                </span>
+                <span>
+                  {nextThreshold ? `NEXT TIER: ${nextThreshold}` : "MASTER TIER"}
+                </span>
+              </div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full border border-[#111111] bg-[#f7f5ee]">
                 <div
-                  key={m.id}
-                  className="flex items-center gap-2.5 rounded-2xl border border-white/5 bg-slate-800/45 p-2"
+                  className="h-full bg-[#111111] transition-all"
+                  style={{ width: `${tierProgress}%` }}
+                />
+              </div>
+              <div className="mt-1.5 flex items-center justify-between font-mono text-[10px] font-bold text-zinc-600">
+                <span>STREAK: {stats.streak}🔥</span>
+                <span>
+                  BEST AIM:{" "}
+                  {stats.bestReactionMs ? `${stats.bestReactionMs}ms` : "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Standings vs Roster Tabs */}
+          <div className="grid grid-cols-2 gap-1.5 border-b-2 border-[#111111] p-2.5">
+            <button
+              type="button"
+              onClick={() => setSidebarTab("standings")}
+              className={`rounded-xl border-2 border-[#111111] py-1.5 font-mono text-[11px] font-black uppercase ${
+                sidebarTab === "standings" ? "bg-[#ffe500]" : "bg-white"
+              }`}
+            >
+              🏆 STANDINGS
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidebarTab("roster")}
+              className={`rounded-xl border-2 border-[#111111] py-1.5 font-mono text-[11px] font-black uppercase ${
+                sidebarTab === "roster" ? "bg-[#ffe500]" : "bg-white"
+              }`}
+            >
+              👥 ROSTER ({everyone.length})
+            </button>
+          </div>
+
+          <div className="chat-scroll flex-1 space-y-2 overflow-y-auto p-3">
+            {sidebarTab === "standings" ? (
+              leaderboard.map((u, idx) => {
+                const t = getRankTier(u.elo ?? 1000);
+                return (
+                  <div
+                    key={u.id}
+                    className={`flex items-center gap-2 rounded-xl border-2 border-[#111111] px-2.5 py-2 ${
+                      idx === 0 ? "bg-[#fffef0]" : "bg-white"
+                    }`}
+                  >
+                    <span className="w-5 font-mono text-xs font-black">
+                      #{idx + 1}
+                    </span>
+                    <img
+                      src={u.avatar}
+                      alt={u.name}
+                      className="h-7 w-7 rounded-full border border-[#111111] object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-black">
+                        {u.name} {u.id === me.id ? "(YOU)" : ""}
+                      </p>
+                      <p className="font-mono text-[10px] font-bold text-zinc-500">
+                        {t.short} · {u.wins ?? 0}W
+                      </p>
+                    </div>
+                    <span
+                      style={{ backgroundColor: t.bg, color: t.text }}
+                      className="rounded border border-[#111111] px-1.5 py-0.5 font-mono text-[10px] font-black"
+                    >
+                      {u.elo ?? 1000}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              everyone.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center gap-2.5 rounded-xl border-2 border-[#111111] bg-white px-2.5 py-2"
                 >
                   <div className="relative shrink-0">
                     <img
-                      src={m.avatar}
-                      alt={m.name}
-                      className="h-9 w-9 rounded-full object-cover"
+                      src={u.avatar}
+                      alt={u.name}
+                      className="h-8 w-8 rounded-full border border-[#111111] object-cover"
                     />
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-slate-900 ${
-                        m.bot
-                          ? "bg-violet-400"
-                          : isOnline(m)
-                          ? "bg-emerald-400"
-                          : "bg-slate-600"
-                      }`}
-                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-[#111111] bg-[#22c55e]" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                      <p className="truncate text-sm font-semibold text-white">
-                        {m.name}
-                      </p>
-                      {m.id === me.id && (
-                        <span className="text-[10px] font-bold text-teal-300">
-                          you
-                        </span>
-                      )}
-                      {m.admin && !m.bot && (
-                        <span
-                          className="ml-auto text-[10px]"
-                          title="Room Host"
-                        >
-                          👑
-                        </span>
-                      )}
-                    </div>
-                    <p className="truncate text-[10px] text-slate-400">
-                      {m.bot
-                        ? `AI Squad · ${m.bio || "Ready"}`
-                        : m.bio ||
-                          (m.device === "mobile"
-                            ? "📱 Mobile · Online"
-                            : "💻 Desktop · Online")}
+                    <p className="truncate text-xs font-black">
+                      {u.name} {u.id === me.id ? "(YOU)" : ""}
+                    </p>
+                    <p className="truncate text-[10px] font-semibold text-zinc-500">
+                      {u.bot ? "AI Sparring Partner" : u.bio || "Online"}
                     </p>
                   </div>
+                  {u.id !== me.id && (
+                    <button
+                      type="button"
+                      onClick={() => postReadyCheck("aimlab")}
+                      title="Challenge to 1v1"
+                      className="pro-btn rounded-lg px-2 py-0.5 font-mono text-[10px] font-black"
+                    >
+                      1v1
+                    </button>
+                  )}
                 </div>
-              ))}
+              ))
+            )}
+
+            {/* Quick Mode Queue Cards */}
+            <div className="pt-2">
+              <p className="mb-1.5 font-mono text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                QUICK QUEUE
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(["aimlab", "sector", "duel", "connect4"] as GameId[]).map(
+                  (gid) => (
+                    <button
+                      key={gid}
+                      type="button"
+                      onClick={() => launchGame(gid)}
+                      className="pro-btn flex flex-col items-start rounded-xl p-2 text-left"
+                    >
+                      <span className="text-base">{GAME_META[gid].emoji}</span>
+                      <span className="mt-0.5 line-clamp-1 text-[11px] font-black">
+                        {GAME_META[gid].name}
+                      </span>
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="border-t border-white/10 p-3.5 text-[11px] leading-relaxed text-slate-400">
-            {syncStatus === "live"
-              ? "🟢 Cloud synced via Supabase Realtime + Postgres RLS."
-              : "⚪ Syncing locally across tabs · Cloud reconnects automatically."}
+          {/* Solo AI Sparring Toggle */}
+          <div className="border-t-2 border-[#111111] bg-white p-3">
+            <div className="flex items-center justify-between text-xs">
+              <div>
+                <p className="font-black">AI Sparring Bots</p>
+                <p className="font-mono text-[10px] text-zinc-500">
+                  {botMode === "auto"
+                    ? otherHumans.length > 0
+                      ? "Paused (human present)"
+                      : "Auto while solo"
+                    : botMode === "on"
+                    ? "Always active"
+                    : "Disabled"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cycleBotMode}
+                className={`rounded-lg border-2 border-[#111111] px-2.5 py-1 font-mono text-[10px] font-black uppercase ${
+                  botMode === "off" ? "bg-[#f7f5ee]" : "bg-[#bbf7d0]"
+                }`}
+              >
+                {botMode.toUpperCase()}
+              </button>
+            </div>
           </div>
         </aside>
       </div>
 
-      {/* Live Squad Poll Builder Modal */}
-      {pollModalOpen && (
+      {/* Squad Poll Modal */}
+      {showPollModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
-          onClick={() => setPollModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowPollModal(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-5 shadow-2xl"
+            className="pro-card w-full max-w-md rounded-2xl bg-white p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-black text-white">
-                🗳️ लाइव ग्रुप पोल / मसाला बहस
-              </h2>
+            <div className="flex items-center justify-between border-b-2 border-[#111111] pb-3">
+              <h3 className="font-mono text-sm font-black uppercase">
+                📊 CREATE SQUAD POLL
+              </h3>
               <button
-                onClick={() => setPollModalOpen(false)}
-                className="rounded-xl bg-slate-800 px-2.5 py-1 text-slate-400 hover:text-white"
+                onClick={() => setShowPollModal(false)}
+                className="pro-btn rounded-lg px-2 py-0.5 text-xs font-black"
               >
                 ✕
               </button>
             </div>
 
-            {/* 1-Tap Desi Masala Poll Presets */}
-            <div className="mb-3">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-amber-300">
-                🔥 1-टैप देसी मसाला सवाल (तुरंत भरें):
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {DESI_QUICK_POLLS.map((preset, pIdx) => (
-                  <button
-                    key={pIdx}
-                    type="button"
-                    onClick={() => {
-                      sounds.playPop();
-                      setPollQuestion(preset.question);
-                      setPollOptions(preset.options);
-                    }}
-                    className="rounded-xl border border-amber-400/30 bg-amber-500/15 px-2.5 py-1 text-left text-[11px] font-bold text-amber-200 transition hover:border-amber-400 hover:bg-amber-500/25"
-                  >
-                    {preset.question.slice(0, 28)}…
-                  </button>
-                ))}
-              </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {DESI_QUICK_POLLS.map((preset) => (
+                <button
+                  key={preset.question}
+                  type="button"
+                  onClick={() => {
+                    setPollQuestion(preset.question);
+                    setPollOpts([...preset.options]);
+                  }}
+                  className="pro-btn rounded-lg px-2.5 py-1 text-[11px] font-bold"
+                >
+                  {preset.question}
+                </button>
+              ))}
             </div>
 
             <input
-              autoFocus
               value={pollQuestion}
               onChange={(e) => setPollQuestion(e.target.value)}
-              maxLength={100}
-              placeholder="ग्रुप से कुछ भी पूछो… (जैसे: आज चाय की पार्टी कौन दे रहा है?)"
-              className="mb-3 w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-sm font-semibold text-white outline-none focus:border-violet-400"
+              placeholder="Poll question…"
+              className="pro-input mt-3 w-full rounded-xl px-3 py-2 text-xs font-semibold"
             />
-            <div className="space-y-2">
-              {pollOptions.map((opt, idx) => (
+            <div className="mt-2 space-y-1.5">
+              {pollOpts.map((opt, idx) => (
                 <input
                   key={idx}
                   value={opt}
                   onChange={(e) =>
-                    setPollOptions((prev) =>
-                      prev.map((x, i) => (i === idx ? e.target.value : x))
+                    setPollOpts((cur) =>
+                      cur.map((x, i) => (i === idx ? e.target.value : x))
                     )
                   }
-                  maxLength={60}
-                  placeholder={`Option ${idx + 1}${idx >= 2 ? " (optional)" : ""}`}
-                  className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2 text-xs text-white outline-none focus:border-teal-400"
+                  placeholder={`Option ${idx + 1}`}
+                  className="pro-input w-full rounded-xl px-3 py-1.5 text-xs font-semibold"
                 />
               ))}
             </div>
-            {pollOptions.length < 5 && (
-              <button
-                type="button"
-                onClick={() => setPollOptions((p) => [...p, ""])}
-                className="mt-2 text-xs font-bold text-teal-300 hover:underline"
-              >
-                + Add another option
-              </button>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPollModalOpen(false)}
-                className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={
-                  !pollQuestion.trim() ||
-                  pollOptions.filter((o) => o.trim()).length < 2
-                }
-                onClick={() => {
-                  createSquadPoll(pollQuestion, pollOptions);
-                  setPollQuestion("");
-                  setPollOptions(["", "", ""]);
-                  setPollModalOpen(false);
-                }}
-                className="rounded-xl bg-gradient-to-r from-violet-600 to-teal-500 px-5 py-2 text-xs font-black text-white disabled:opacity-40"
-              >
-                Launch Poll →
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={createSquadPoll}
+              className="pro-btn-accent mt-4 w-full rounded-xl py-2.5 font-mono text-xs font-black uppercase"
+            >
+              POST POLL →
+            </button>
           </div>
         </div>
       )}
 
-      {/* Arcade Library */}
-      {arcadeOpen && !game && (
-        <GameLibrary
-          onClose={() => setArcadeOpen(false)}
-          onPick={(id) => {
-            setArcadeOpen(false);
-            startGame(me.name, id || undefined);
+      {searchQuery !== null && (
+        <SearchConsole
+          initialQuery={searchQuery}
+          onClose={() => setSearchQuery(null)}
+          onShare={(card: SearchCard) => {
+            publishMessage({ text: "", card });
+            setSearchQuery(null);
           }}
         />
       )}
 
-      {/* Active Multiplayer Game Overlay */}
-      {game && (
+      {libraryMode && (
+        <GameLibrary
+          defaultQueueMode={libraryMode === "lobby"}
+          onPick={launchGame}
+          onPostLobby={postReadyCheck}
+          onClose={() => setLibraryMode(null)}
+        />
+      )}
+
+      {game && !gameHidden && (
         <GameOverlay
           g={game}
           me={me}
           isLeader={isLeader}
-          canEndGame={Boolean(amHost)}
-          mutate={mutate}
-          finish={finishGame}
-          onAbort={abortGame}
+          canEndGame={canEndActiveGame}
+          mutate={handleMutateGame}
+          finish={handleFinishGame}
+          onAbort={() => {
+            if (game.phase === "done") abortGame();
+            else setGameHidden(true);
+          }}
+          onRematch={(gid) => {
+            abortGame();
+            window.setTimeout(() => launchGame(gid), 50);
+          }}
         />
       )}
-
-      {/* Collaborative Search Console */}
-      {searchOpen !== null && (
-        <SearchConsole
-          initialQuery={searchOpen}
-          onClose={() => setSearchOpen(null)}
-          onShare={shareCard}
-        />
-      )}
-
-      {/* Session Recap Summary Modal */}
-      {summary && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
-          onClick={() => setSummary(null)}
-        >
-          <div
-            className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <h2 className="text-2xl font-black text-white">
-                  ✨ Room Recap
-                </h2>
-                <p className="text-xs text-slate-400">
-                  /{room} · Last {retention} days
-                </p>
-              </div>
-              <button
-                onClick={() => setSummary(null)}
-                className="rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="mb-4 rounded-2xl border border-violet-500/30 bg-violet-500/10 p-4 text-sm leading-relaxed text-violet-100">
-              {summary.headline}
-            </p>
-
-            <div className="mb-4 grid grid-cols-3 gap-2 text-center">
-              {[
-                ["💬", summary.stats.humans, "messages"],
-                ["👥", summary.stats.participants.length, "speakers"],
-                ["🎮", summary.stats.games, "missions"],
-              ].map(([icon, num, label]) => (
-                <div
-                  key={String(label)}
-                  className="rounded-2xl bg-slate-800/70 p-3"
-                >
-                  <p className="text-lg">{icon}</p>
-                  <p className="text-xl font-black text-white">{num}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400">
-                    {label}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {summary.topics.length > 0 && (
-              <Section title="🏷 Key Topics">
-                <div className="flex flex-wrap gap-1.5">
-                  {summary.topics.map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-violet-300"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </Section>
-            )}
-
-            {summary.shared.length > 0 && (
-              <Section title="🔎 Shared Cards">
-                {summary.shared.map((s, i) => (
-                  <li key={i}>
-                    <b>{s.label}:</b> "{s.query}"
-                    {s.note && (
-                      <span className="font-medium text-violet-300">
-                        {" "}
-                        — {s.note}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </Section>
-            )}
-
-            {summary.keyPoints.length > 0 && (
-              <Section title="📌 Key Highlights">
-                {summary.keyPoints.map((k, i) => (
-                  <li key={i}>{k}</li>
-                ))}
-              </Section>
-            )}
-
-            {summary.decisions.length > 0 && (
-              <Section title="🤝 Decisions & Plans">
-                {summary.decisions.map((d, i) => (
-                  <li key={i}>{d}</li>
-                ))}
-              </Section>
-            )}
-
-            {summary.games.length > 0 && (
-              <Section title="🎮 Mission Log">
-                {summary.games.map((g, i) => (
-                  <li key={i}>{g}</li>
-                ))}
-              </Section>
-            )}
-          </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-800/95 px-5 py-2.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md">
-          {toast}
-        </div>
-      )}
     </div>
-  );
-}
-
-function IconBtn({
-  children,
-  onClick,
-  title,
-  active,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  title: string;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        sounds.playPop();
-        onClick();
-      }}
-      title={title}
-      className={`flex h-11 w-9 shrink-0 items-center justify-center rounded-2xl text-base transition active:scale-95 sm:w-10 ${
-        active
-          ? "bg-violet-600/40 text-white ring-1 ring-violet-400"
-          : "text-slate-400 hover:bg-slate-800/80 hover:text-white"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-4">
-      <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-        {title}
-      </p>
-      <ul className="list-inside list-disc space-y-1.5 text-sm leading-relaxed text-slate-300">
-        {children}
-      </ul>
-    </div>
-  );
-}
-
-interface RowProps {
-  m: Message;
-  meName: string;
-  mine: boolean;
-  grouped: boolean;
-  onDelete: () => void;
-  onReply: () => void;
-  onEdit?: () => void;
-  onJumpReply: (id: string) => void;
-  onReact: (e: string) => void;
-  onVotePoll: (optionId: string, kind: "squad" | "card") => void;
-  pickerOpen: boolean;
-  togglePicker: () => void;
-}
-
-function Reactions({
-  m,
-  meName,
-  onReact,
-}: {
-  m: Message;
-  meName: string;
-  onReact: (e: string) => void;
-}) {
-  if (!m.reactions || !Object.keys(m.reactions).length) return null;
-  return (
-    <div className="mt-1 flex flex-wrap gap-1">
-      {Object.entries(m.reactions).map(([e, names]) => {
-        const active = names.includes(meName);
-        return (
-          <button
-            key={e}
-            onClick={(ev) => {
-              ev.stopPropagation();
-              onReact(e);
-            }}
-            title={names.join(", ")}
-            className={`rounded-full border px-2 py-0.5 text-xs font-bold shadow transition active:scale-95 ${
-              active
-                ? "border-violet-400/70 bg-violet-500/25 text-white"
-                : "border-white/10 bg-slate-800/90 text-slate-200 hover:border-violet-400/50"
-            }`}
-          >
-            {e} {names.length}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function MessageRow({
-  m,
-  meName,
-  mine,
-  grouped,
-  onDelete,
-  onReply,
-  onEdit,
-  onJumpReply,
-  onReact,
-  onVotePoll,
-  pickerOpen,
-  togglePicker,
-}: RowProps) {
-  if (m.kind === "system") {
-    return (
-      <div className="my-2.5 flex justify-center">
-        <span className="max-w-[92%] rounded-full border border-white/10 bg-slate-900/80 px-4 py-1 text-center text-xs font-medium text-slate-400">
-          {m.text}
-        </span>
-      </div>
-    );
-  }
-
-  if (m.kind === "ai" && m.card) {
-    return (
-      <div
-        className={`msg-arrive group my-2.5 flex ${
-          mine ? "justify-end" : "justify-start"
-        }`}
-      >
-        <div className="relative w-full max-w-[94%] sm:max-w-[82%]">
-          <p
-            className={`mb-1 text-[11px] font-bold ${
-              mine ? "text-right text-slate-400" : "text-violet-300"
-            }`}
-          >
-            {mine ? "You shared a live plan card" : `${m.name} shared a plan card`} ·{" "}
-            {fmtTime(m.ts)}
-          </p>
-          <SearchCardView
-            card={m.card}
-            meName={meName}
-            onVotePoll={(optId) => onVotePoll(optId, "card")}
-          />
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {REACTIONS.slice(0, 5).map((e) => (
-              <button
-                key={e}
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  onReact(e);
-                }}
-                className="rounded-xl border border-white/5 bg-slate-800/80 px-2 py-0.5 text-sm shadow transition hover:scale-110 hover:bg-slate-700"
-              >
-                {e}
-              </button>
-            ))}
-            <button
-              onClick={onReply}
-              className="rounded-xl border border-white/5 bg-slate-800/80 px-2.5 py-0.5 text-xs font-bold text-slate-300 hover:bg-slate-700"
-            >
-              ↩ Reply
-            </button>
-            <Reactions m={m} meName={meName} onReact={onReact} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const att = m.attachment;
-  const otherReaders = (m.seenBy || []).filter((n) => n !== m.name);
-  const pollTotalVotes =
-    m.poll?.options.reduce((s, o) => s + o.votes.length, 0) || 0;
-
-  return (
-    <div
-      className={`msg-arrive group flex items-end gap-2 ${
-        grouped ? "pt-0.5" : "pt-2.5"
-      } ${mine ? "flex-row-reverse" : ""}`}
-    >
-      {!mine && (
-        <div className="w-8 shrink-0">
-          {!grouped && (
-            <img
-              src={m.avatar}
-              alt={m.name}
-              className="h-8 w-8 rounded-full border border-white/10 object-cover"
-            />
-          )}
-        </div>
-      )}
-
-      <div className="relative max-w-[85%] sm:max-w-[70%]">
-        {!mine && !grouped && (
-          <p className="mb-0.5 ml-1 text-[11px] font-bold text-violet-300">
-            {m.name}
-          </p>
-        )}
-
-        <div
-          className={`rounded-3xl px-4 py-2.5 shadow-md ${
-            mine
-              ? "rounded-br-md bg-gradient-to-br from-violet-600 to-indigo-600 text-white"
-              : "rounded-bl-md border border-white/5 bg-slate-800/95 text-slate-100"
-          } ${m.text === "GAME" ? "ring-2 ring-amber-400/80" : ""}`}
-        >
-          {/* Quoted Reply Header */}
-          {m.replyTo && (
-            <button
-              type="button"
-              onClick={() => onJumpReply(m.replyTo!.id)}
-              className={`mb-2 block w-full rounded-xl border-l-2 px-2.5 py-1.5 text-left text-xs transition hover:brightness-110 ${
-                mine
-                  ? "border-teal-300 bg-black/25 text-white/90"
-                  : "border-violet-400 bg-slate-950/60 text-slate-300"
-              }`}
-            >
-              <span className="block font-bold text-teal-300">
-                {m.replyTo.name}
-              </span>
-              <span className="block truncate opacity-85">
-                {m.replyTo.preview}
-              </span>
-            </button>
-          )}
-
-          {/* Standalone Live Poll */}
-          {m.poll ? (
-            <div className="min-w-[230px] sm:min-w-[290px]">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-teal-200">
-                  🗳️ Live Room Poll
-                </span>
-                <span className="text-[10px] opacity-80">
-                  {pollTotalVotes} {pollTotalVotes === 1 ? "vote" : "votes"}
-                </span>
-              </div>
-              <p className="mb-2.5 text-sm font-black leading-snug">
-                {m.poll.question}
-              </p>
-              <div className="space-y-1.5">
-                {m.poll.options.map((opt) => {
-                  const pct = pollTotalVotes
-                    ? Math.round((opt.votes.length / pollTotalVotes) * 100)
-                    : 0;
-                  const voted = opt.votes.includes(meName);
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => onVotePoll(opt.id, "squad")}
-                      title={
-                        opt.votes.length
-                          ? `Voted: ${opt.votes.join(", ")}`
-                          : "Tap to vote"
-                      }
-                      className={`relative w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-xs transition active:scale-[0.99] ${
-                        voted
-                          ? "border-teal-300 bg-black/35 font-bold"
-                          : "border-white/15 bg-black/20 hover:bg-black/30"
-                      }`}
-                    >
-                      <div
-                        className="pointer-events-none absolute inset-y-0 left-0 bg-teal-400/30 transition-all duration-300"
-                        style={{ width: `${pct}%` }}
-                      />
-                      <div className="relative flex items-center justify-between gap-2">
-                        <span>
-                          {voted ? "✓ " : ""}
-                          {opt.label}
-                        </span>
-                        <span className="font-mono text-[11px] font-bold">
-                          {opt.votes.length} ({pct}%)
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : m.text === "GAME" ? (
-            <p className="text-center font-mono text-xl font-black tracking-widest text-amber-300">
-              🎮 GAME
-            </p>
-          ) : (
-            m.text && (
-              <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">
-                {m.text}
-              </p>
-            )
-          )}
-
-          {/* Attachments */}
-          {att && (
-            <div className={m.text ? "mt-2.5" : ""}>
-              {att.type === "image" &&
-                (att.url ? (
-                  <img
-                    src={att.url}
-                    alt={att.name}
-                    className="max-h-64 rounded-2xl shadow"
-                  />
-                ) : (
-                  <Expired label="Image" />
-                ))}
-              {att.type === "gif" && (
-                <img
-                  src={att.url}
-                  alt={att.name}
-                  className="max-h-56 rounded-2xl shadow"
-                />
-              )}
-              {att.type === "audio" &&
-                (att.url ? (
-                  <div className="flex flex-col gap-1">
-                    <audio
-                      controls
-                      src={att.url}
-                      className="h-10 w-60 max-w-full"
-                    />
-                    {att.duration && (
-                      <span className="text-[10px] opacity-75">
-                        🎤 Voice note · {att.duration}s
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <Expired label="Voice note" />
-                ))}
-              {att.type === "file" &&
-                (att.url ? (
-                  <a
-                    href={att.url}
-                    download={att.name}
-                    className="flex items-center gap-2.5 rounded-2xl bg-black/30 px-3.5 py-3 hover:bg-black/45"
-                  >
-                    <span className="text-2xl">
-                      {att.mime.includes("pdf") ? "📕" : "📄"}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-bold">
-                        {att.name}
-                      </span>
-                      <span className="text-[10px] opacity-75">
-                        {att.size ? (att.size / 1024).toFixed(0) + " KB · " : ""}
-                        tap to download
-                      </span>
-                    </span>
-                  </a>
-                ) : (
-                  <Expired label={att.name} />
-                ))}
-            </div>
-          )}
-
-          {/* Timestamp + Edited Tag + Realistic Read Receipts */}
-          <div
-            className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${
-              mine ? "text-white/75" : "text-slate-400"
-            }`}
-          >
-            {m.editedAt && <span className="italic opacity-80">edited</span>}
-            <span>{fmtTime(m.ts)}</span>
-            {mine && (
-              <span
-                title={
-                  otherReaders.length
-                    ? `Seen by ${otherReaders.join(", ")}`
-                    : m.delivery === "cloud"
-                    ? "Delivered to cloud room"
-                    : "Sent"
-                }
-                className={`font-bold tracking-tighter ${
-                  otherReaders.length > 0
-                    ? "text-teal-300"
-                    : "text-white/75"
-                }`}
-              >
-                {otherReaders.length > 0 || m.delivery === "cloud" ? "✓✓" : "✓"}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <Reactions m={m} meName={meName} onReact={onReact} />
-
-        {/* Message Hover Action Bar */}
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className={`absolute -top-3 ${
-            mine ? "left-0" : "right-0"
-          } z-20 hidden items-center gap-0.5 rounded-full border border-white/10 bg-slate-900/95 px-1.5 py-0.5 shadow-xl group-hover:flex`}
-        >
-          <button
-            onClick={togglePicker}
-            title="React"
-            className="rounded-full p-1 text-[11px] hover:bg-slate-800"
-          >
-            😊
-          </button>
-          <button
-            onClick={onReply}
-            title="Reply"
-            className="rounded-full p-1 text-[11px] text-slate-300 hover:bg-slate-800 hover:text-white"
-          >
-            ↩
-          </button>
-          {onEdit && (
-            <button
-              onClick={onEdit}
-              title="Edit message"
-              className="rounded-full p-1 text-[11px] text-slate-300 hover:bg-slate-800 hover:text-white"
-            >
-              ✏️
-            </button>
-          )}
-          <button
-            onClick={onDelete}
-            title={mine ? "Delete" : "Report"}
-            className="rounded-full p-1 text-[11px] text-slate-300 hover:bg-slate-800 hover:text-rose-300"
-          >
-            {mine ? "🗑" : "🚩"}
-          </button>
-        </div>
-
-        {pickerOpen && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className={`absolute -top-12 z-30 flex gap-1 rounded-2xl border border-white/10 bg-slate-800 p-1.5 shadow-2xl ${
-              mine ? "right-0" : "left-0"
-            }`}
-          >
-            {REACTIONS.map((e) => (
-              <button
-                key={e}
-                onClick={() => onReact(e)}
-                className="rounded-lg px-2 py-0.5 text-lg transition hover:scale-125 hover:bg-slate-700"
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Expired({ label }: { label: string }) {
-  return (
-    <p className="rounded-xl bg-black/30 px-3 py-2 text-xs italic opacity-70">
-      📦 {label} — shared during live room session
-    </p>
   );
 }

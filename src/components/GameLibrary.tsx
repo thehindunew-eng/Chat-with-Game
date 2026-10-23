@@ -1,32 +1,27 @@
+import { useState } from "react";
 import type { GameId } from "../lib/types";
 import { GAME_META } from "../lib/types";
 import { sounds } from "../lib/audio";
 
-const GROUPS: { label: string; icon: string; highlight?: boolean; ids: GameId[] }[] = [
+const GROUPS: { label: string; ids: GameId[] }[] = [
   {
-    label: "🇮🇳 UP & दिल्ली भौकाल स्पेशल (NEW!)",
-    icon: "🔥",
-    highlight: true,
-    ids: ["dialogue", "golgappa", "bargain"],
+    label: "PRO COMPETITIVE MODES",
+    ids: ["aimlab", "sector", "duel"],
   },
   {
-    label: "तुरंत दिमागी & बोर्ड मुकाबले",
-    icon: "⚡",
+    label: "1v1 & SPEED PUZZLES",
     ids: ["tictactoe", "connect4", "slide", "wikirace"],
   },
   {
-    label: "पलटन को-ऑप मिशन (सब साथ खेलें)",
-    icon: "🛡️",
+    label: "SQUAD CO-OP MISSIONS",
     ids: ["bomb", "astro", "reactor", "cipher"],
   },
   {
-    label: "मस्ती, गपशप & स्पीड अड्डा",
-    icon: "🎉",
+    label: "PARTY & APM RELAYS",
     ids: ["chain", "blitz", "codebreak", "story"],
   },
   {
-    label: "लाइव कैमरा & वीडियो भौकाल",
-    icon: "🎬",
+    label: "CAMERA CHALLENGES",
     ids: ["controller", "npc", "desk"],
   },
 ];
@@ -34,65 +29,100 @@ const GROUPS: { label: string; icon: string; highlight?: boolean; ids: GameId[] 
 export default function GameLibrary({
   onClose,
   onPick,
+  onPostLobby,
+  defaultQueueMode = false,
 }: {
   onClose: () => void;
   onPick: (id: GameId | null) => void;
+  onPostLobby?: (id: GameId) => void;
+  defaultQueueMode?: boolean;
 }) {
+  const [launchMode, setLaunchMode] = useState<"instant" | "lobby">(
+    defaultQueueMode ? "lobby" : "instant"
+  );
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/85 p-0 backdrop-blur-md sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-amber-500/35 bg-slate-900 shadow-2xl sm:rounded-3xl"
+        className="pro-card flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3 border-b border-white/10 bg-gradient-to-r from-orange-950/75 via-slate-900 to-emerald-950/65 px-5 py-4">
-          <span className="text-3xl">🕹️</span>
+        {/* Crisp Header */}
+        <div className="flex flex-wrap items-center gap-3 border-b-2 border-[#111111] bg-[#f3f0e6] px-5 py-3.5">
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-black text-white">
-              देसी पलटन आर्केड <span className="text-xs font-extrabold text-amber-300">(18 लाइव गेम्स)</span>
+            <h2 className="text-lg font-black tracking-tight text-[#111111]">
+              ARCADE MODE SELECT
             </h2>
-            <p className="text-xs text-slate-300">
-              कोई भी गेम चुनते ही पूरे ग्रुप के फोन पे एक साथ चालू होगा — हारने वाला समोसा पार्टी देगा! 🥟🔥
+            <p className="text-xs font-medium text-zinc-600">
+              {launchMode === "lobby"
+                ? "Post a Ready-Check Challenge card to chat so players ready up first."
+                : "Instant launch locks chat and drops all online players into the match."}
             </p>
           </div>
+
+          {onPostLobby && (
+            <div className="flex rounded-xl border-2 border-[#111111] bg-white p-0.5">
+              <button
+                type="button"
+                onClick={() => setLaunchMode("instant")}
+                className={`rounded-lg px-3 py-1 font-mono text-[11px] font-black transition ${
+                  launchMode === "instant"
+                    ? "bg-[#111111] text-white"
+                    : "text-zinc-700 hover:bg-zinc-100"
+                }`}
+              >
+                INSTANT START
+              </button>
+              <button
+                type="button"
+                onClick={() => setLaunchMode("lobby")}
+                className={`rounded-lg px-3 py-1 font-mono text-[11px] font-black transition ${
+                  launchMode === "lobby"
+                    ? "bg-[#ffe500] text-[#111111]"
+                    : "text-zinc-700 hover:bg-zinc-100"
+                }`}
+              >
+                READY CHECK
+              </button>
+            </div>
+          )}
+
           <button
             onClick={onClose}
-            className="rounded-xl bg-slate-800 px-3 py-2 text-slate-400 hover:text-white"
+            className="pro-btn rounded-lg px-2.5 py-1 text-xs font-black"
           >
             ✕
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+        {/* Mode Grid */}
+        <div className="chat-scroll min-h-0 flex-1 overflow-y-auto bg-[#f7f5ee] p-4 sm:p-5">
           <button
             onClick={() => {
               sounds.playGameTrigger();
               onPick(null);
             }}
-            className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-rose-500/20 p-4 text-left transition hover:border-amber-300 hover:brightness-110 active:scale-[0.99]"
+            className="pro-btn-accent mb-5 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left"
           >
-            <span className="text-3xl">🎲</span>
+            <span className="text-2xl">🎲</span>
             <div>
-              <p className="font-black text-amber-200">
-                किस्मत का पिटारा — कोई भी सरप्राइज़ गेम चलाओ!
+              <p className="font-mono text-xs font-black uppercase tracking-wider">
+                RANDOM RANKED ROTATION
               </p>
-              <p className="text-xs text-amber-100/80">
-                चैट में <b className="font-mono text-white">GAME</b> लिखने जैसा ही तुरंत सरप्राइज़ मुकाबला!
+              <p className="text-xs font-medium text-zinc-800">
+                Instant mystery mode for everyone online (same as typing GAME)
               </p>
             </div>
-            <span className="ml-auto text-xl text-amber-300">→</span>
+            <span className="ml-auto font-mono text-sm font-black">PLAY →</span>
           </button>
 
           {GROUPS.map((group) => (
             <section key={group.label} className="mb-5 last:mb-0">
-              <p
-                className={`mb-2 text-[11px] font-black uppercase tracking-wider ${
-                  group.highlight ? "text-amber-300" : "text-slate-400"
-                }`}
-              >
-                {group.icon} {group.label}
+              <p className="mb-2 font-mono text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                {group.label}
               </p>
               <div className="grid gap-2.5 sm:grid-cols-2">
                 {group.ids.map((id) => {
@@ -102,37 +132,31 @@ export default function GameLibrary({
                       key={id}
                       onClick={() => {
                         sounds.playPop();
-                        onPick(id);
+                        if (launchMode === "lobby" && onPostLobby) {
+                          onPostLobby(id);
+                        } else {
+                          onPick(id);
+                        }
                       }}
-                      className={`group flex items-start gap-3 rounded-2xl border p-3.5 text-left transition active:scale-[0.98] ${
-                        group.highlight
-                          ? "border-amber-400/40 bg-gradient-to-br from-amber-950/45 via-slate-900 to-orange-950/35 hover:border-amber-300 shadow-lg shadow-amber-950/20"
-                          : "border-white/10 bg-slate-800/60 hover:border-violet-400/60 hover:bg-slate-800"
-                      }`}
+                      className="pro-btn flex items-start gap-3 rounded-xl p-3.5 text-left"
                     >
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950/80 text-2xl shadow-inner">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-[#111111] bg-[#f3f0e6] text-xl">
                         {meta.emoji}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
-                          <span className="truncate text-sm font-black text-white">
+                          <span className="truncate text-sm font-black text-[#111111]">
                             {meta.name}
                           </span>
-                          <span className="ml-auto shrink-0 rounded bg-black/30 px-1.5 py-0.5 font-mono text-[9px] text-amber-200/90">
+                          <span className="ml-auto shrink-0 rounded border border-[#111111] bg-[#f3f0e6] px-1.5 py-0.5 font-mono text-[10px] font-bold">
                             {meta.minutes}
                           </span>
                         </span>
-                        <span className="mt-1 block text-[11px] leading-snug text-slate-300">
+                        <span className="mt-1 block text-xs leading-snug text-zinc-600">
                           {meta.blurb}
                         </span>
-                        <span
-                          className={`mt-1.5 inline-block rounded px-1.5 py-0.5 text-[9px] font-bold ${
-                            group.highlight
-                              ? "bg-amber-500/20 text-amber-200"
-                              : "bg-violet-500/15 text-violet-300"
-                          }`}
-                        >
-                          {meta.tag}
+                        <span className="mt-1.5 inline-block rounded border border-[#111111] bg-[#ffe500]/60 px-1.5 py-0.5 font-mono text-[9px] font-black uppercase">
+                          {launchMode === "lobby" ? "POST READY CHECK" : meta.tag}
                         </span>
                       </span>
                     </button>
@@ -141,10 +165,6 @@ export default function GameLibrary({
               </div>
             </section>
           ))}
-        </div>
-
-        <div className="border-t border-white/10 bg-slate-950/85 px-5 py-3 text-center text-[11px] text-slate-400">
-          🔒 गेम चालू होते ही चैट लॉक · सारे ऑनलाइन दोस्त अपने-आप जुड़ेंगे · 🇮🇳 UP-दिल्ली स्पेशल
         </div>
       </div>
     </div>

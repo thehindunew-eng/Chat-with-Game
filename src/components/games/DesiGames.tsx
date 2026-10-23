@@ -1,487 +1,462 @@
+import { useEffect, useState } from "react";
 import type { GameProps } from "./CoopGames";
-import { bumpScore, feed } from "../../lib/gameSync";
+import { bumpScore, feed, generateSectorPattern } from "../../lib/gameSync";
 import { sounds } from "../../lib/audio";
 
 // ==========================================
-// 1. FILMY / MIRZAPUR / PANCHAYAT DIALOGUE BAAZI
+// 1. FLICK AIM LAB (`aimlab`) — Live ms Reaction & Accuracy Grid
 // ==========================================
 export function DialogueBaaziGame({ g, me, mutate, finish }: GameProps) {
-  const { qIdx, score, streak, questions, votes, revealed, lastCorrect } = g.data;
-  const q = questions[qIdx] || questions[0];
+  const {
+    targetCell,
+    bonusCell,
+    hits,
+    misses,
+    quota,
+    combo,
+    bestMs,
+    totalMs,
+    spawnedAt,
+    lastShotBy,
+    lastMs,
+  } = g.data;
 
-  const pickOption = (optIdx: number) => {
-    if (g.phase === "done" || revealed) return;
-    const correct = optIdx === q.answer;
-    if (correct) sounds.playSuccess();
-    else sounds.playError();
+  const avgMs = hits > 0 ? Math.round(totalMs / hits) : 0;
+  const totalShots = hits + misses;
+  const accuracy = totalShots > 0 ? Math.round((hits / totalShots) * 100) : 100;
 
-    const nextScore = score + (correct ? 1 : 0);
-    const nextStreak = correct ? (streak || 0) + 1 : 0;
+  const shootCell = (idx: number) => {
+    if (g.phase === "done") return;
+    const now = Date.now();
+    const isPrimary = idx === targetCell;
+    const isBonus = idx === bonusCell;
+
+    if (!isPrimary && !isBonus) {
+      sounds.playError();
+      mutate((cur) =>
+        cur.phase === "done"
+          ? cur
+          : {
+              ...cur,
+              data: {
+                ...cur.data,
+                misses: (cur.data.misses || 0) + 1,
+                combo: 0,
+              },
+            }
+      );
+      return;
+    }
+
+    sounds.playClack();
+    const reaction = Math.max(95, Math.min(2500, now - (spawnedAt || now - 350)));
+    const nextHits = hits + 1;
+    const nextCombo = combo + 1;
+    const nextBest = bestMs ? Math.min(bestMs, reaction) : reaction;
+    const nextTotalMs = totalMs + reaction;
+    const pts = (isBonus ? 18 : 10) + Math.min(10, nextCombo * 2);
+
+    let nextTarget = Math.floor(Math.random() * 16);
+    if (nextTarget === idx) nextTarget = (idx + 7) % 16;
+    const nextBonus = (nextTarget + 5 + (nextHits % 7)) % 16;
 
     mutate((cur) => {
-      if (cur.phase === "done" || cur.data.revealed) return cur;
-      const updated = bumpScore(cur, me.id, correct ? 25 : 0);
+      if (cur.phase === "done") return cur;
+      const updated = bumpScore(cur, me.id, pts);
       return feed(
         {
           ...updated,
           data: {
             ...cur.data,
-            votes: { ...cur.data.votes, [me.name]: optIdx },
-            score: nextScore,
-            streak: nextStreak,
-            revealed: true,
-            lastCorrect: correct,
+            targetCell: nextTarget,
+            bonusCell: nextBonus,
+            hits: nextHits,
+            combo: nextCombo,
+            bestMs: nextBest,
+            totalMs: nextTotalMs,
+            spawnedAt: Date.now(),
+            lastShotBy: me.name,
+            lastMs: reaction,
           },
         },
         {
           name: me.name,
-          text: correct
-            ? `🎬 एकदम कड़क डायलॉग पकड़ा: “${q.options[optIdx]}” 🔥`
-            : `😅 गलत डायलॉग बोल दिया: “${q.options[optIdx]}”`,
-          ts: Date.now(),
+          text: `Hit ${isBonus ? "CRIT " : ""}target in ${reaction}ms (x${nextCombo})`,
+          ts: now,
         }
       );
     });
 
-    setTimeout(() => {
-      if (qIdx + 1 >= questions.length) {
-        if (nextScore >= 3) {
-          finish(
-            `डायलॉग किंग पलटन (${nextScore}/${questions.length} सही मारे!) 🎬👑`,
-            "पूरे मोहल्ले में भौकाल टाइट!"
-          );
-        } else {
-          finish(
-            `डायलॉग बाज़ी में ${nextScore}/${questions.length} आए — आज पंचायत और हेरा फेरी दोबारा देखो भाई 😂`
-          );
-        }
-      } else {
-        mutate((cur) =>
-          cur.phase === "done"
-            ? cur
-            : {
-                ...cur,
-                data: {
-                  ...cur.data,
-                  qIdx: qIdx + 1,
-                  votes: {},
-                  revealed: false,
-                  lastCorrect: null,
-                },
-              }
-        );
-      }
-    }, 1250);
+    if (nextHits >= quota) {
+      const finalAvg = Math.round(nextTotalMs / nextHits);
+      sounds.playSuccess();
+      finish(
+        `Aim Lab cleared — ${finalAvg}ms avg reaction · ${accuracy}% accuracy 🎯`,
+        `Fastest flick: ${nextBest}ms`
+      );
+    }
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-orange-950/70 via-slate-900 to-amber-950/60 px-4 py-2.5">
-        <span className="text-xs font-extrabold text-amber-200">
-          🎬 डायलॉग #{Math.min(qIdx + 1, questions.length)}/{questions.length} ·{" "}
-          <span className="text-orange-300">{q.vibe}</span>
-        </span>
-        <div className="flex items-center gap-2 text-xs font-black">
-          {streak >= 2 && (
-            <span className="rounded-full border border-orange-400/50 bg-orange-500/20 px-2.5 py-0.5 text-orange-200 animate-pulse">
-              🔥 स्ट्रीक x{streak}
-            </span>
-          )}
-          <span className="text-emerald-300">स्कोर: {score}/{questions.length}</span>
+    <div className="space-y-3">
+      {/* Telemetry HUD */}
+      <div className="grid grid-cols-4 gap-2">
+        <div className="pro-cream rounded-xl px-3 py-2 text-center">
+          <p className="text-[10px] font-black uppercase text-zinc-500">Targets</p>
+          <p className="font-mono text-base font-black text-zinc-950">
+            {hits}/{quota}
+          </p>
+        </div>
+        <div className="pro-cream rounded-xl px-3 py-2 text-center">
+          <p className="text-[10px] font-black uppercase text-zinc-500">Avg Speed</p>
+          <p className="font-mono text-base font-black text-zinc-950">
+            {avgMs ? `${avgMs}ms` : "—"}
+          </p>
+        </div>
+        <div className="pro-cream rounded-xl px-3 py-2 text-center">
+          <p className="text-[10px] font-black uppercase text-zinc-500">Accuracy</p>
+          <p className="font-mono text-base font-black text-zinc-950">{accuracy}%</p>
+        </div>
+        <div className="pro-cream rounded-xl px-3 py-2 text-center">
+          <p className="text-[10px] font-black uppercase text-zinc-500">Streak</p>
+          <p className="font-mono text-base font-black text-zinc-950">x{combo}</p>
         </div>
       </div>
 
-      <div className="rounded-3xl border-2 border-amber-400/40 bg-gradient-to-br from-slate-900 via-indigo-950/60 to-amber-950/40 p-6 text-center shadow-2xl">
-        <p className="mb-2 text-[11px] font-black uppercase tracking-widest text-amber-400">
-          ✦ आइकॉनिक देसी डायलॉग पूरा करो ✦
-        </p>
-        <p className="text-xl font-black leading-relaxed text-white sm:text-2xl">{q.quote}</p>
-      </div>
-
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        {q.options.map((opt: string, idx: number) => {
-          const isRight = revealed && idx === q.answer;
-          const isWrong = revealed && votes[me.name] === idx && idx !== q.answer;
-          const voters = Object.entries(votes || {})
-            .filter(([, v]) => v === idx)
-            .map(([k]) => k);
+      {/* Crisp 4x4 Esports Aim Grid */}
+      <div className="mx-auto grid max-w-[360px] grid-cols-4 gap-2 rounded-2xl border-2 border-[#111111] bg-[#f3f0e6] p-3 shadow-[4px_4px_0px_#111111]">
+        {Array.from({ length: 16 }, (_, idx) => {
+          const isPrimary = idx === targetCell;
+          const isBonus = idx === bonusCell;
           return (
             <button
               key={idx}
-              disabled={revealed || g.phase === "done"}
-              onClick={() => pickOption(idx)}
-              className={`rounded-2xl border-2 px-4 py-3.5 text-left text-sm font-black transition active:scale-95 ${
-                isRight
-                  ? "border-emerald-400 bg-emerald-500/25 text-emerald-100 shadow-lg shadow-emerald-500/20"
-                  : isWrong
-                  ? "border-rose-400 bg-rose-500/25 text-rose-100"
-                  : "border-white/10 bg-slate-800/80 text-white hover:border-amber-400/60 hover:bg-slate-800"
+              type="button"
+              onClick={() => shootCell(idx)}
+              className={`flex aspect-square items-center justify-center rounded-xl border-2 border-[#111111] font-mono text-lg font-black transition-transform active:scale-90 ${
+                isPrimary
+                  ? "bg-[#ffe500] text-[#111111] shadow-[2.5px_2.5px_0px_#111111]"
+                  : isBonus
+                  ? "bg-[#fecaca] text-[#991b1b] shadow-[2.5px_2.5px_0px_#111111]"
+                  : "bg-white text-zinc-300 hover:bg-zinc-50"
               }`}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span>
-                  <span className="mr-2 text-amber-400">{["A.", "B.", "C.", "D."][idx]}</span>
-                  {opt}
-                </span>
-                {voters.length > 0 && (
-                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-200">
-                    {voters.join(", ")}
-                  </span>
-                )}
-              </div>
+              {isPrimary ? "◎" : isBonus ? "★" : "·"}
             </button>
           );
         })}
       </div>
 
-      {revealed && (
-        <div
-          className={`rounded-xl border px-4 py-2 text-center text-xs font-black ${
-            lastCorrect
-              ? "border-emerald-500/40 bg-emerald-950/60 text-emerald-300"
-              : "border-rose-500/40 bg-rose-950/60 text-rose-300"
-          }`}
-        >
-          {lastCorrect
-            ? "🔥 ग़ज़ब गुरु!! एकदम असली फिल्मी खिलाड़ी हो!"
-            : `😅 अरे भाई! सही जवाब “${q.options[q.answer]}” था!`}
-        </div>
-      )}
+      <p className="text-center font-mono text-xs text-zinc-600">
+        {lastShotBy
+          ? `Last hit: ${lastShotBy} (${lastMs}ms) · ◎ Primary (+10) · ★ Crit (+18)`
+          : "Click ◎ Yellow or ★ Red targets as fast as possible — avoid empty tiles."}
+      </p>
     </div>
   );
 }
 
 // ==========================================
-// 2. GOLGAPPA VS MOMOS STREET COUNTER CHALLENGE
+// 2. SECTOR RECALL (`sector`) — 4-Wave Tactical Radar Memory
 // ==========================================
 export function GolgappaChaatGame({ g, me, mutate, finish }: GameProps) {
-  const { orderIdx, totalOrders, orders, golgappaScore, momosScore, served, spicyCombo, lastServedBy } =
-    g.data;
-  const currentOrder = orders[orderIdx % orders.length];
+  const { wave, maxWaves, pattern, cleared, wrongCell, lives, revealUntil } = g.data;
+  const [now, setNow] = useState(Date.now());
 
-  const servePlate = (choice: "golgappa" | "momos", bonusSukhi = false) => {
-    if (g.phase === "done") return;
-    const rightItem = choice === currentOrder.item;
-    if (rightItem) sounds.playClack();
-    else sounds.playError();
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 120);
+    return () => clearInterval(iv);
+  }, []);
 
-    const nextServed = served + (rightItem ? 1 : 0);
-    const nextGol = golgappaScore + (choice === "golgappa" && rightItem ? 1 : 0);
-    const nextMom = momosScore + (choice === "momos" && rightItem ? 1 : 0);
-    const nextCombo = rightItem ? spicyCombo + (bonusSukhi ? 2 : 1) : 0;
-    const nextIdx = orderIdx + 1;
+  const revealing = now < revealUntil;
 
-    mutate((cur) => {
-      if (cur.phase === "done") return cur;
-      const updated = bumpScore(cur, me.id, rightItem ? (bonusSukhi ? 20 : 12) : 0);
-      return feed(
-        {
-          ...updated,
-          data: {
-            ...cur.data,
-            orderIdx: nextIdx,
-            served: nextServed,
-            golgappaScore: nextGol,
-            momosScore: nextMom,
-            spicyCombo: nextCombo,
-            lastServedBy: `${me.name} (${rightItem ? "सही प्लेट ✅" : "गलत प्लेट ❌"})`,
-          },
-        },
-        {
-          name: me.name,
-          text: rightItem
-            ? `🥟 ${currentOrder.customer} को गरमा-गरम प्लेट सर्व की! 🔥`
-            : `😅 अरे गलत प्लेट दे दी भाई!`,
-          ts: Date.now(),
+  const clickTile = (idx: number) => {
+    if (g.phase === "done" || revealing || cleared.includes(idx)) return;
+
+    if (pattern.includes(idx)) {
+      sounds.playClack();
+      const nextCleared = [...cleared, idx];
+
+      if (nextCleared.length >= pattern.length) {
+        if (wave >= maxWaves) {
+          sounds.playSuccess();
+          mutate((cur) =>
+            bumpScore(
+              { ...cur, data: { ...cur.data, cleared: nextCleared } },
+              me.id,
+              25
+            )
+          );
+          finish(`Sector Recall cleared — all ${maxWaves} radar waves swept cleanly 🧠`);
+          return;
         }
+
+        const nextWave = wave + 1;
+        const nextPattern = generateSectorPattern(g.seed, nextWave);
+        sounds.playSuccess();
+        mutate((cur) =>
+          feed(
+            bumpScore(
+              {
+                ...cur,
+                data: {
+                  ...cur.data,
+                  wave: nextWave,
+                  pattern: nextPattern,
+                  cleared: [],
+                  wrongCell: null,
+                  revealUntil: Date.now() + 1700,
+                },
+              },
+              me.id,
+              15
+            ),
+            {
+              name: me.name,
+              text: `Wave ${wave} cleared — advancing to Wave ${nextWave}`,
+              ts: Date.now(),
+            }
+          )
+        );
+        return;
+      }
+
+      mutate((cur) =>
+        bumpScore(
+          {
+            ...cur,
+            data: { ...cur.data, cleared: nextCleared, wrongCell: null },
+          },
+          me.id,
+          5
+        )
       );
-    });
-
-    if (nextIdx >= totalOrders) {
-      const champ =
-        nextGol >= nextMom
-          ? "UP पानी के बताशे (गोलगप्पा) गैंग जीता! 🫧🏆"
-          : "दिल्ली-NCR तंदूरी मोमोज़ गैंग जीता! 🥟🏆";
-      finish(`${nextServed}/${totalOrders} प्लेट सफ़ाचट · ${champ}`, `कॉम्बो x${nextCombo}`);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-emerald-950/70 via-slate-900 to-rose-950/70 px-4 py-2.5">
-        <span className="text-xs font-extrabold text-amber-200">
-          🛒 ठेला ऑर्डर #{Math.min(orderIdx + 1, totalOrders)}/{totalOrders}
-        </span>
-        <div className="flex items-center gap-3 text-xs font-black">
-          <span className="text-emerald-300">🫧 गोलगप्पा: {golgappaScore}</span>
-          <span className="text-rose-300">🥟 मोमोज़: {momosScore}</span>
-        </div>
-      </div>
-
-      {currentOrder && (
-        <div className="space-y-2 rounded-3xl border-2 border-amber-400/40 bg-slate-900/95 p-5 text-center shadow-xl">
-          <p className="text-xs font-bold text-amber-300">
-            ग्राहक खड़ा है: <span className="font-black text-white">{currentOrder.customer}</span>
-          </p>
-          <p className="text-xl font-black text-white sm:text-2xl">
-            {currentOrder.item === "golgappa"
-              ? "🫧 “भैया एक प्लेट ठंडे तीखे पानी के गोलगप्पे लगाना!”"
-              : "🥟 “भैया एक प्लेट गरम लाल चटनी + मेयोनीज़ मोमोज़ लगाओ!”"}
-          </p>
-          <span className="inline-block rounded-full border border-orange-400/30 bg-orange-500/15 px-3 py-1 text-xs font-extrabold text-orange-300">
-            मसाला डिमांड: {currentOrder.spice}
-          </span>
-        </div>
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <button
-          disabled={g.phase === "done"}
-          onClick={() => servePlate("golgappa")}
-          className="rounded-2xl border-2 border-emerald-400/50 bg-gradient-to-br from-emerald-600/30 to-teal-950/60 p-4 text-left transition hover:brightness-110 active:scale-95"
-        >
-          <div className="mb-1 text-2xl">🫧🌿🌶️</div>
-          <div className="text-sm font-black text-emerald-200">UP स्पेशल गोलगप्पा सर्व करो</div>
-          <div className="text-[11px] text-emerald-300/80">पुदीना-हींग का खट्टा-तीखा पानी + आलू चना</div>
-        </button>
-
-        <button
-          disabled={g.phase === "done"}
-          onClick={() => servePlate("momos")}
-          className="rounded-2xl border-2 border-rose-400/50 bg-gradient-to-br from-rose-600/30 to-orange-950/60 p-4 text-left transition hover:brightness-110 active:scale-95"
-        >
-          <div className="mb-1 text-2xl">🥟🔥🥫</div>
-          <div className="text-sm font-black text-rose-200">दिल्ली-NCR मोमोज़ प्लेट लगाओ</div>
-          <div className="text-[11px] text-rose-300/80">कट्टई ज़हर लाल मिर्च चटनी + क्रीमी मेयो</div>
-        </button>
-      </div>
-
-      <button
-        disabled={g.phase === "done"}
-        onClick={() => servePlate(currentOrder?.item || "golgappa", true)}
-        className="w-full rounded-xl border border-amber-400/50 bg-amber-500/20 py-2.5 text-xs font-black text-amber-200 transition hover:bg-amber-500/30 active:scale-95"
-      >
-        🎁 “भैया लास्ट में फ्री सूखी पापड़ी / एक्स्ट्रा चटनी भी डाल दो!” (+2 बोनस कॉम्बो)
-      </button>
-
-      {lastServedBy && (
-        <p className="text-center text-xs text-slate-400">
-          पिछला ऑर्डर: <span className="font-bold text-white">{lastServedBy}</span> · कॉम्बो 🔥 x{spicyCombo}
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ==========================================
-// 3. AUTO BHAIYA METER BARGAIN DUEL
-// ==========================================
-const BARGAIN_MOVES = [
-  {
-    id: "walkaway",
-    icon: "🚶‍♂️",
-    title: "“रहने दो भैया, हम मेट्रो/पैदल ही निकल लेंगे!”",
-    desc: "देसी ब्रह्मास्त्र — किराया ₹65-95 कम कराता है, पर ऑटो भैया गुस्सा हो सकते हैं!",
-    dropRange: [65, 95] as [number, number],
-    patienceCost: 30,
-  },
-  {
-    id: "local",
-    icon: "😎",
-    title: "“अरे भैया यहीं के लोकल हैं, रोज़ ₹100 में जाते हैं!”",
-    desc: "भरोसेमंद डायलॉग — किराया ₹45-65 कम + संतुलित रिस्क!",
-    dropRange: [45, 65] as [number, number],
-    patienceCost: 18,
-  },
-  {
-    id: "sharing",
-    icon: "🤝",
-    title: "“चलो बीच का लगा लो भाई, चाय-पानी के ₹20 ऊपर ले लेना!”",
-    desc: "भाईचारा मूव — किराया ₹25-40 कम + ऑटो भैया का मूड खुश!",
-    dropRange: [25, 40] as [number, number],
-    patienceCost: -10,
-  },
-];
-
-const DRIVER_COMEBACKS = [
-  "अरे बाबूजी CNG ₹92 किलो हो गई है, थोड़ा तो रहम करो गरीब आदमी पे! 😅",
-  "चलो बैठो जल्दी पीछे पुलिस वाला चालान काट देगा, और कम मत कराओ! 🛺",
-  "हद कर दी भाई साहब आपने तो बोहनी के टाइम! 😂",
-  "अच्छा ठीक है, आगे जाम मिला तो गली वाले शॉर्टकट से निकाल लेंगे! 🔥",
-];
-
-export function AutoBargainGame({ g, me, mutate, finish }: GameProps) {
-  const { route, distance, initialAsk, fairFare, driverName, currentAsk, meterPatience, turnsLeft, log } =
-    g.data;
-  const targetMax = fairFare + 35;
-
-  const makeMove = (moveIdx: number) => {
-    if (g.phase === "done") return;
-    const move = BARGAIN_MOVES[moveIdx];
-    const drop =
-      move.dropRange[0] + Math.floor(Math.random() * (move.dropRange[1] - move.dropRange[0] + 1));
-    const nextAsk = Math.max(fairFare - 10, currentAsk - drop);
-    const nextPatience = Math.min(100, meterPatience - move.patienceCost);
-    const nextTurns = turnsLeft - 1;
-
-    if (nextPatience <= 0) {
+    } else {
       sounds.playError();
+      const nextLives = lives - 1;
+      if (nextLives <= 0) {
+        mutate((cur) => ({
+          ...cur,
+          data: { ...cur.data, lives: 0, wrongCell: idx },
+        }));
+        finish(`Radar sweep failed on Wave ${wave}/${maxWaves} 💥`);
+        return;
+      }
       mutate((cur) =>
         feed(
           {
             ...cur,
             data: {
               ...cur.data,
-              currentAsk: nextAsk,
-              meterPatience: 0,
-              turnsLeft: nextTurns,
-              log: [
-                ...cur.data.log.slice(-3),
-                { speaker: me.name, text: move.title },
-                { speaker: "driver", text: "जाओ भाई तुम पैदल ही जाओ!! *भुर्रर्रर्र* 🛺💨" },
-              ],
+              lives: nextLives,
+              wrongCell: idx,
+              revealUntil: Date.now() + 1100,
             },
           },
-          { name: me.name, text: `😂 ज़्यादा मोल-भाव कर दिया — ${driverName} ऑटो भगा ले गए!`, ts: Date.now() }
+          {
+            name: me.name,
+            text: `Tripped decoy sector — ${nextLives} shield(s) left`,
+            ts: Date.now(),
+          }
         )
       );
-      finish(`${driverName} गुस्से में ऑटो भगा के निकल गए — अब पैदल चलो! 🛺💨😂`);
-      return;
     }
-
-    if (nextAsk <= targetMax) {
-      sounds.playSuccess();
-      const saved = initialAsk - nextAsk;
-      mutate((cur) =>
-        bumpScore(
-          feed(
-            {
-              ...cur,
-              data: {
-                ...cur.data,
-                currentAsk: nextAsk,
-                meterPatience: nextPatience,
-                turnsLeft: nextTurns,
-                log: [
-                  ...cur.data.log.slice(-3),
-                  { speaker: me.name, text: move.title },
-                  { speaker: "driver", text: `चलो बैठो भाई ₹${nextAsk} डन! तुम भी क्या याद रखोगे! 🤝🛺` },
-                ],
-              },
-            },
-            { name: me.name, text: `🛺 डील लॉक! ₹${initialAsk} से सीधा ₹${nextAsk} कराया! 🔥`, ts: Date.now() }
-          ),
-          me.id,
-          35
-        )
-      );
-      finish(
-        `मोल-भाव चैंपियन! ₹${initialAsk} वाले ऑटो को ₹${nextAsk} में लॉक किया 🛺💸`,
-        `पूरे ₹${saved} बचा लिए!`
-      );
-      return;
-    }
-
-    if (nextTurns <= 0) {
-      sounds.playError();
-      finish(`ऑटो भैया ₹${nextAsk} से नीचे नहीं माने (टारगेट ₹${targetMax} था) 😅`);
-      return;
-    }
-
-    sounds.playPop();
-    const comeback = DRIVER_COMEBACKS[Math.floor(Math.random() * DRIVER_COMEBACKS.length)];
-    mutate((cur) =>
-      feed(
-        {
-          ...cur,
-          data: {
-            ...cur.data,
-            currentAsk: nextAsk,
-            meterPatience: nextPatience,
-            turnsLeft: nextTurns,
-            log: [
-              ...cur.data.log.slice(-3),
-              { speaker: me.name, text: move.title },
-              { speaker: "driver", text: `${comeback} (अब ₹${nextAsk} बोल रहे हैं)` },
-            ],
-          },
-        },
-        { name: me.name, text: `किराया घटाकर ₹${nextAsk} तक ले आए!`, ts: Date.now() }
-      )
-    );
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-r from-amber-500/20 via-emerald-950/70 to-yellow-500/20 p-4">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between rounded-xl border-2 border-[#111111] bg-[#f3f0e6] px-4 py-2.5 text-xs font-black">
+        <span>
+          WAVE {wave}/{maxWaves} · {revealing ? "MEMORIZE SECTORS" : `SWEEP ${cleared.length}/${pattern.length}`}
+        </span>
+        <span className="font-mono">
+          SHIELDS: {"●".repeat(Math.max(0, lives))}
+          {"○".repeat(Math.max(0, 3 - lives))}
+        </span>
+      </div>
+
+      <div className="mx-auto grid max-w-[350px] grid-cols-4 gap-2 rounded-2xl border-2 border-[#111111] bg-white p-3 shadow-[4px_4px_0px_#111111]">
+        {Array.from({ length: 16 }, (_, idx) => {
+          const isTarget = pattern.includes(idx);
+          const isCleared = cleared.includes(idx);
+          const isWrong = wrongCell === idx;
+          return (
+            <button
+              key={idx}
+              type="button"
+              disabled={revealing || g.phase === "done"}
+              onClick={() => clickTile(idx)}
+              className={`flex aspect-square items-center justify-center rounded-xl border-2 border-[#111111] font-mono text-base font-black transition ${
+                revealing && isTarget
+                  ? "bg-[#ffe500] text-[#111111]"
+                  : isCleared
+                  ? "bg-[#bbf7d0] text-[#14532d]"
+                  : isWrong
+                  ? "bg-[#fecaca] text-[#991b1b]"
+                  : "bg-[#f7f5ee] text-zinc-400 hover:bg-[#efece2]"
+              }`}
+            >
+              {revealing && isTarget ? "◆" : isCleared ? "✓" : isWrong ? "✕" : idx + 1}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="text-center font-mono text-xs text-zinc-600">
+        {revealing
+          ? "Scanning active sectors — lock positions into memory…"
+          : "Select all marked sectors without tripping an empty tile."}
+      </p>
+    </div>
+  );
+}
+
+// ==========================================
+// 3. STRIKE · GUARD · FEINT (`duel`) — Tactical Read Duel
+// ==========================================
+type Stance = "strike" | "guard" | "feint";
+
+const STANCES: { id: Stance; label: string; icon: string; rule: string }[] = [
+  { id: "strike", label: "STRIKE", icon: "⚔️", rule: "Crushes FEINT · Parried by GUARD" },
+  { id: "guard", label: "GUARD", icon: "🛡️", rule: "Parries STRIKE · Broken by FEINT" },
+  { id: "feint", label: "FEINT", icon: "⚡", rule: "Breaks GUARD · Caught by STRIKE" },
+];
+
+export function AutoBargainGame({ g, me, mutate, finish }: GameProps) {
+  const { rivalName, rivalStyle, playerHp, rivalHp, round, streak, log } = g.data;
+
+  const lockStance = (pick: Stance) => {
+    if (g.phase === "done") return;
+    const options: Stance[] = ["strike", "guard", "feint"];
+    const aiPick = options[Math.floor(Math.random() * 3)];
+
+    let outcome: "win" | "lose" | "clash" = "clash";
+    if (pick === aiPick) outcome = "clash";
+    else if (
+      (pick === "strike" && aiPick === "feint") ||
+      (pick === "guard" && aiPick === "strike") ||
+      (pick === "feint" && aiPick === "guard")
+    ) {
+      outcome = "win";
+    } else {
+      outcome = "lose";
+    }
+
+    const nextStreak = outcome === "win" ? streak + 1 : 0;
+    const dmgToRival = outcome === "win" ? 34 + (nextStreak >= 2 ? 12 : 0) : outcome === "clash" ? 6 : 0;
+    const dmgToPlayer = outcome === "lose" ? 32 : outcome === "clash" ? 6 : 0;
+
+    const nextRivalHp = Math.max(0, rivalHp - dmgToRival);
+    const nextPlayerHp = Math.max(0, playerHp - dmgToPlayer);
+
+    const summaryLine =
+      outcome === "win"
+        ? `R${round}: ${me.name} read ${aiPick.toUpperCase()} with ${pick.toUpperCase()} (-${dmgToRival} HP${
+            nextStreak >= 2 ? " CRIT!" : ""
+          })`
+        : outcome === "lose"
+        ? `R${round}: Opponent countered ${pick.toUpperCase()} with ${aiPick.toUpperCase()} (-${dmgToPlayer} HP)`
+        : `R${round}: Both threw ${pick.toUpperCase()} — neutral clash (-6 HP each)`;
+
+    if (outcome === "win") sounds.playClack();
+    else if (outcome === "lose") sounds.playError();
+    else sounds.playPop();
+
+    mutate((cur) =>
+      feed(
+        bumpScore(
+          {
+            ...cur,
+            data: {
+              ...cur.data,
+              playerHp: nextPlayerHp,
+              rivalHp: nextRivalHp,
+              round: round + 1,
+              streak: nextStreak,
+              log: [...(cur.data.log || []).slice(-3), { tag: outcome.toUpperCase(), text: summaryLine }],
+            },
+          },
+          me.id,
+          outcome === "win" ? 20 : 2
+        ),
+        { name: me.name, text: summaryLine, ts: Date.now() }
+      )
+    );
+
+    if (nextRivalHp <= 0) {
+      sounds.playSuccess();
+      finish(`KO Victory vs ${rivalName} with ${nextPlayerHp} HP remaining ⚔️`);
+    } else if (nextPlayerHp <= 0) {
+      finish(`Defeated by ${rivalName} in Round ${round}`);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Dual Fighter Health Bars */}
+      <div className="grid grid-cols-2 gap-3 rounded-2xl border-2 border-[#111111] bg-[#f3f0e6] p-3.5">
         <div>
-          <p className="text-xs font-extrabold text-yellow-300">
-            🛺 {driverName} · <span className="text-emerald-300">{distance}</span>
-          </p>
-          <p className="text-sm font-black text-white sm:text-base">{route}</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-[10px] font-bold uppercase text-slate-400">अभी का किराया</p>
-            <p className="font-mono text-2xl font-black text-amber-300">₹{currentAsk}</p>
+          <div className="mb-1 flex justify-between text-xs font-black">
+            <span>SQUAD</span>
+            <span className="font-mono">{playerHp} HP</span>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold uppercase text-emerald-400">सही देसी रेट</p>
-            <p className="font-mono text-lg font-black text-emerald-300">≤ ₹{targetMax}</p>
+          <div className="h-3 overflow-hidden rounded-full border-2 border-[#111111] bg-white">
+            <div
+              className="h-full bg-[#22c55e] transition-all duration-300"
+              style={{ width: `${playerHp}%` }}
+            />
+          </div>
+        </div>
+        <div>
+          <div className="mb-1 flex justify-between text-xs font-black">
+            <span className="truncate">{rivalName}</span>
+            <span className="font-mono">{rivalHp} HP</span>
+          </div>
+          <div className="h-3 overflow-hidden rounded-full border-2 border-[#111111] bg-white">
+            <div
+              className="h-full bg-[#ef4444] transition-all duration-300"
+              style={{ width: `${rivalHp}%` }}
+            />
           </div>
         </div>
       </div>
 
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs font-extrabold">
-          <span className="text-slate-300">😤 ऑटो भैया का सब्र मीटर: {meterPatience}%</span>
-          <span className="text-amber-300">बाकी मौके: {turnsLeft}</span>
-        </div>
-        <div className="h-2.5 overflow-hidden rounded-full border border-white/10 bg-slate-800">
-          <div
-            className={`h-full transition-all duration-300 ${
-              meterPatience > 55
-                ? "bg-emerald-500"
-                : meterPatience > 28
-                ? "bg-amber-500"
-                : "bg-rose-500 animate-pulse"
-            }`}
-            style={{ width: `${Math.max(5, meterPatience)}%` }}
-          />
-        </div>
+      <div className="flex items-center justify-between text-xs font-bold text-zinc-600 px-1">
+        <span>ROUND {round} · Style: {rivalStyle}</span>
+        {streak >= 2 && (
+          <span className="rounded-md border border-[#111111] bg-[#ffe500] px-2 py-0.5 font-mono text-[11px] font-black text-[#111111]">
+            READ STREAK x{streak}
+          </span>
+        )}
       </div>
 
-      <div className="max-h-36 space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/90 p-3">
-        {(log || []).map((entry: { speaker: string; text: string }, i: number) => (
-          <div
-            key={i}
-            className={`rounded-xl px-3 py-2 text-xs ${
-              entry.speaker === "driver"
-                ? "border border-yellow-500/30 bg-yellow-500/10 text-yellow-100"
-                : "ml-6 border border-violet-500/30 bg-violet-500/15 text-violet-100"
-            }`}
-          >
-            <span className="mr-1.5 font-black">
-              {entry.speaker === "driver" ? `🛺 ${driverName}:` : `🗣️ ${entry.speaker}:`}
+      {/* Combat Feed */}
+      <div className="space-y-1.5 rounded-xl border-2 border-[#111111] bg-white p-3">
+        {(log || []).map((entry: { tag: string; text: string }, idx: number) => (
+          <div key={idx} className="font-mono text-xs text-zinc-800">
+            <span className="mr-2 inline-block rounded border border-[#111111] bg-[#f3f0e6] px-1.5 py-0.5 text-[10px] font-black">
+              {entry.tag}
             </span>
             {entry.text}
           </div>
         ))}
       </div>
 
-      <div className="space-y-2">
-        {BARGAIN_MOVES.map((m, idx) => (
+      {/* 3 Stance Switches */}
+      <div className="grid gap-2 sm:grid-cols-3">
+        {STANCES.map((s) => (
           <button
-            key={m.id}
+            key={s.id}
+            type="button"
             disabled={g.phase === "done"}
-            onClick={() => makeMove(idx)}
-            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-slate-800/85 px-4 py-3 text-left transition hover:border-yellow-400/60 hover:bg-slate-800 active:scale-[0.99]"
+            onClick={() => lockStance(s.id)}
+            className="pro-btn rounded-xl p-3 text-left"
           >
-            <span className="shrink-0 text-2xl">{m.icon}</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-black text-white sm:text-sm">{m.title}</p>
-              <p className="text-[11px] text-slate-400">{m.desc}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-xl">{s.icon}</span>
+              <span className="font-mono text-xs font-black">{s.label}</span>
             </div>
+            <p className="mt-1.5 text-[11px] font-medium text-zinc-600">{s.rule}</p>
           </button>
         ))}
       </div>

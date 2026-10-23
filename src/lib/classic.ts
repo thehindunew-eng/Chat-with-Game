@@ -146,48 +146,15 @@ export function slideSolved(board: number[]): boolean {
   return board.every((v, i) => v === (i + 1) % board.length);
 }
 
-/* ---------- India, UP & Delhi Special Wikipedia Race Routes ---------- */
 export const WIKI_ROUTES = [
-  {
-    start: "Taj Mahal",
-    target: "Varanasi",
-    hint: "Uttar Pradesh पर क्लिक करो, वहाँ से सीधा बनारस मिलेगा!",
-  },
-  {
-    start: "Samosa",
-    target: "Uttar Pradesh",
-    hint: "India या South Asian cuisine के रास्ते राज्यों तक पहुँचो!",
-  },
-  {
-    start: "Delhi Metro",
-    target: "Indian Railways",
-    hint: "Transport in India या New Delhi लिंक पकड़ो!",
-  },
-  {
-    start: "Lucknow",
-    target: "Biryani",
-    hint: "Awadhi cuisine वाले हिस्से में सीधा रास्ता छुपा है!",
-  },
-  {
-    start: "Virat Kohli",
-    target: "MS Dhoni",
-    hint: "India national cricket team या IPL टीमों से जाओ!",
-  },
-  {
-    start: "Amitabh Bachchan",
-    target: "Prayagraj",
-    hint: "उनके जन्मस्थान (Allahabad / Prayagraj) वाला लिंक देखो!",
-  },
-  {
-    start: "Ganges",
-    target: "Himalayas",
-    hint: "नदी के उद्गम (origin) सेक्शन में सीधा लिंक है!",
-  },
-  {
-    start: "Cricket",
-    target: "India",
-    hint: "क्रिकेट खेलने वाले प्रमुख देशों की लिस्ट देखो!",
-  },
+  { start: "Video game", target: "Esports", hint: "Follow competitive multiplayer." },
+  { start: "Speedrun", target: "Super Mario 64", hint: "Check landmark speedrunning titles." },
+  { start: "Chess", target: "Grandmaster (chess)", hint: "Check highest FIDE titles." },
+  { start: "Artificial intelligence", target: "Deep Blue (chess computer)", hint: "Follow game-playing AI milestones." },
+  { start: "Internet", target: "World Wide Web", hint: "Follow core protocols & history." },
+  { start: "Cryptography", target: "Enigma machine", hint: "Check historical cipher hardware." },
+  { start: "Moon", target: "Apollo 11", hint: "Follow crewed lunar missions." },
+  { start: "Olympic Games", target: "Marathon", hint: "Look under athletics events." },
 ];
 
 export interface WikiPage {
@@ -208,16 +175,18 @@ export async function fetchWikiPage(title: string): Promise<WikiPage> {
   const r = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, {
     signal: AbortSignal.timeout(12000),
   });
-  if (!r.ok)
+  if (!r.ok) {
     throw new Error(
       r.status === 429
-        ? "Wikipedia थोड़ा लोड ले रहा है — 2 सेकंड रुकके फिर दबाओ!"
-        : "Wikipedia अभी कनेक्ट नहीं हो पा रहा"
+        ? "Wikipedia rate limit — retry in a moment"
+        : "Wikipedia unavailable"
     );
+  }
   const json = await r.json();
   const page = json?.parse;
-  if (!page || json.error)
-    throw new Error(json?.error?.info || "पेज नहीं मिला");
+  if (!page || json.error) {
+    throw new Error(json?.error?.info || "Article not found");
+  }
   const links = Array.from(
     new Set<string>(
       (page.links || [])
@@ -229,7 +198,7 @@ export async function fetchWikiPage(title: string): Promise<WikiPage> {
     .sort((a, b) => a.localeCompare(b));
   return {
     title: page.title,
-    extract: `${links.length} असली Wikipedia लिंक्स मिले हैं! नीचे टाइप करके अगला पड़ाव खोजो और सबसे पहले मंज़िल छुओ।`,
+    extract: `${links.length} internal links available. Filter or click any link below to advance.`,
     links,
   };
 }
