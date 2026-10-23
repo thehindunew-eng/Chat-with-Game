@@ -290,13 +290,13 @@ export default function VideoChallengeGame({ g, me, mutate, finish }: GameProps)
   return (
     <div>
       <div className="mb-3 rounded-2xl border border-pink-400/30 bg-gradient-to-br from-pink-500/15 to-violet-950/30 p-3.5">
-        <p className="text-sm font-black text-white">{copy.icon} {copy.title}</p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-300">{copy.instruction}</p>
+        <p className="text-sm font-black text-[#111111]">{copy.icon} {copy.title}</p>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-800">{copy.instruction}</p>
         <p className="mt-2 text-[10px] font-bold text-pink-200">🎵 Original synthesized arcade soundtrack · 🔒 Clips stay in this room session</p>
       </div>
 
       {variant === "controller" && (
-        <div className={`mb-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold ${myTurn ? "bg-emerald-500/15 text-emerald-200" : "bg-slate-800 text-slate-300"}`}>
+        <div className={`mb-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold ${myTurn ? "bg-[#bbf7d0] text-emerald-800" : "bg-[#efece2] text-zinc-800"}`}>
           {activePlayer && <img src={activePlayer.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
           {myTurn ? "The controller is in YOUR hands" : `${activePlayer?.name} has the controller — get ready for the cut!`}
           <span className="ml-auto">{d.submissions.length}/{d.required} shots</span>
@@ -304,36 +304,36 @@ export default function VideoChallengeGame({ g, me, mutate, finish }: GameProps)
       )}
 
       {/* Persistent live video element so the stream can attach immediately */}
-      <div className={`relative mb-3 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 ${stage === "live" ? "block" : "hidden"}`}>
+      <div className={`relative mb-3 overflow-hidden rounded-2xl border border-[#111111] bg-white ${stage === "live" ? "block" : "hidden"}`}>
         <video ref={liveRef} autoPlay muted playsInline className={`aspect-video w-full object-cover ${variant === "desk" ? "" : "mirror"}`} />
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent p-3">
-          <span className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-black text-white"><span className="h-2 w-2 animate-pulse rounded-full bg-white" /> REC</span>
-          <span className="rounded-lg bg-black/60 px-3 py-1 font-mono text-xl font-black text-white">00:{String(timeLeft).padStart(2, "0")}</span>
+          <span className="flex items-center gap-1.5 rounded-lg pro-btn-accent px-2.5 py-1 text-xs font-black text-[#111111]"><span className="h-2 w-2 animate-pulse rounded-full bg-white" /> REC</span>
+          <span className="rounded-lg bg-black/60 px-3 py-1 font-mono text-xl font-black text-[#111111]">00:{String(timeLeft).padStart(2, "0")}</span>
         </div>
         {variant === "npc" && <div className="npc-scan pointer-events-none absolute inset-0 border-4 border-dashed border-cyan-300/30" />}
         {variant === "controller" && (
-          <button onClick={() => stopRecording(true)} className="absolute inset-x-8 bottom-5 rounded-2xl bg-gradient-to-r from-amber-400 to-rose-500 py-4 text-xl font-black text-slate-950 shadow-2xl transition active:scale-95">
+          <button onClick={() => stopRecording(true)} className="absolute inset-x-8 bottom-5 rounded-2xl pro-btn-accent py-4 text-xl font-black text-slate-950 shadow-2xl transition active:scale-95">
             🎮 PASS THE CONTROLLER →
           </button>
         )}
         {variant !== "controller" && (
-          <button onClick={() => stopRecording(false)} className="absolute bottom-4 right-4 rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white shadow-lg">■ Finish take</button>
+          <button onClick={() => stopRecording(false)} className="absolute bottom-4 right-4 rounded-xl pro-btn-accent px-4 py-2 text-xs font-black text-[#111111] shadow-lg">■ Finish take</button>
         )}
       </div>
 
       {stage === "review" && preview && (
-        <div className="mb-3 rounded-2xl border border-white/10 bg-slate-950 p-2">
+        <div className="mb-3 rounded-2xl border border-[#111111] bg-white p-2">
           <video src={preview} controls playsInline className="aspect-video w-full rounded-xl object-contain" />
           <div className="mt-2 flex gap-2">
-            <button onClick={() => { setPreview(null); setStage("idle"); }} className="flex-1 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300">↺ Retake</button>
-            <button onClick={() => { setSaving(true); commitClip(preview); }} disabled={saving} className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-2.5 text-xs font-black text-white disabled:opacity-50">{saving ? "Syncing…" : "Submit to team cut 🎬"}</button>
+            <button onClick={() => { setPreview(null); setStage("idle"); }} className="flex-1 rounded-xl bg-[#efece2] py-2.5 text-xs font-bold text-zinc-800">↺ Retake</button>
+            <button onClick={() => { setSaving(true); commitClip(preview); }} disabled={saving} className="flex-1 rounded-xl pro-btn-accent py-2.5 text-xs font-black text-[#111111] disabled:opacity-50">{saving ? "Syncing…" : "Submit to team cut 🎬"}</button>
           </div>
         </div>
       )}
 
-      {error && <p className="mb-3 rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-200">{error}</p>}
+      {error && <p className="mb-3 rounded-xl border border-rose-400/30 bg-[#fecaca] p-3 text-xs font-semibold text-rose-800">{error}</p>}
       {error && !d.submissions.length && (
-        <button onClick={() => finish("the camera challenge was skipped because recording was unavailable — no clip was submitted")} className="mb-3 w-full rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700">
+        <button onClick={() => finish("the camera challenge was skipped because recording was unavailable — no clip was submitted")} className="mb-3 w-full rounded-xl bg-[#efece2] py-2.5 text-xs font-bold text-zinc-800 hover:bg-slate-700">
           Skip video challenge &amp; unlock chat (no fake submission)
         </button>
       )}
@@ -341,29 +341,29 @@ export default function VideoChallengeGame({ g, me, mutate, finish }: GameProps)
       {stage === "idle" && (variant !== "controller" || !d.ready) && (
         <div className="mb-3 text-center">
           <button onClick={startRecording} disabled={!myTurn || saving || (alreadySubmitted && variant === "controller")}
-            className="rounded-2xl bg-gradient-to-r from-pink-600 to-violet-600 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:brightness-110 active:scale-95 disabled:opacity-40">
+            className="rounded-2xl pro-btn-accent px-6 py-3 text-sm font-black text-[#111111] shadow-lg transition hover:brightness-110 active:scale-95 disabled:opacity-40">
             {alreadySubmitted && variant !== "controller" ? "🎬 Record a replacement take" : copy.action}
           </button>
-          {!myTurn && <p className="mt-2 text-xs text-slate-400">Wait for the current player to press PASS.</p>}
-          {alreadySubmitted && variant !== "controller" && <p className="mt-2 text-xs text-emerald-300">Your clip is in the team cut — you can replace it until the challenge ends.</p>}
+          {!myTurn && <p className="mt-2 text-xs text-zinc-600">Wait for the current player to press PASS.</p>}
+          {alreadySubmitted && variant !== "controller" && <p className="mt-2 text-xs text-emerald-800">Your clip is in the team cut — you can replace it until the challenge ends.</p>}
         </div>
       )}
 
       {/* Team submissions and replay */}
       {d.submissions.length > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+        <div className="rounded-2xl border border-[#111111] bg-white p-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-black uppercase tracking-wider text-slate-300">Team cut · {d.submissions.length}/{d.required}</p>
+            <p className="text-xs font-black uppercase tracking-wider text-zinc-800">Team cut · {d.submissions.length}/{d.required}</p>
             <button onClick={() => { setMontage(true); setMontageIdx(0); }} className="rounded-lg bg-pink-500/20 px-3 py-1.5 text-xs font-bold text-pink-200 hover:bg-pink-500/30">▶ Play team cut</button>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {d.submissions.map((s) => (
-              <div key={s.uid} className="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+              <div key={s.uid} className="overflow-hidden rounded-xl border border-[#111111] bg-[#f7f5ee]">
                 <video src={s.url} controls playsInline preload="metadata" className="aspect-video w-full object-cover" />
                 <div className="flex items-center gap-1.5 p-2">
                   <img src={s.avatar} alt="" className="h-5 w-5 rounded-full object-cover" />
-                  <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-white">{s.name}</span>
-                  <button onClick={() => vote(s.uid)} className="rounded-lg bg-slate-800 px-2 py-1 text-[11px] font-bold hover:bg-slate-700">😂 {s.votes.length}</button>
+                  <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-[#111111]">{s.name}</span>
+                  <button onClick={() => vote(s.uid)} className="rounded-lg bg-[#efece2] px-2 py-1 text-[11px] font-bold hover:bg-slate-700">😂 {s.votes.length}</button>
                 </div>
               </div>
             ))}
@@ -372,7 +372,7 @@ export default function VideoChallengeGame({ g, me, mutate, finish }: GameProps)
       )}
 
       {(d.ready || d.submissions.length > 0) && stage === "idle" && (
-        <button onClick={finishChallenge} className="mt-3 w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 py-3 text-sm font-black text-white shadow-lg hover:brightness-110">
+        <button onClick={finishChallenge} className="mt-3 w-full rounded-2xl pro-btn-accent py-3 text-sm font-black text-[#111111] shadow-lg hover:brightness-110">
           {d.ready ? "🏆 Finish challenge & unlock chat" : `End early with ${d.submissions.length} clip${d.submissions.length === 1 ? "" : "s"} & unlock`}
         </button>
       )}
@@ -380,14 +380,14 @@ export default function VideoChallengeGame({ g, me, mutate, finish }: GameProps)
       {montage && d.submissions.length > 0 && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 p-4" onClick={() => setMontage(false)}>
           <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-2 flex items-center justify-between text-white">
+            <div className="mb-2 flex items-center justify-between text-[#111111]">
               <p className="font-black">🎬 Team cut · Shot {montageIdx + 1}/{d.submissions.length} · {d.submissions[montageIdx].name}</p>
-              <button onClick={() => setMontage(false)} className="rounded-xl bg-slate-800 px-3 py-1.5">✕</button>
+              <button onClick={() => setMontage(false)} className="rounded-xl bg-[#efece2] px-3 py-1.5">✕</button>
             </div>
             <video key={d.submissions[montageIdx].uid} src={d.submissions[montageIdx].url} autoPlay controls playsInline
               onEnded={() => montageIdx < d.submissions.length - 1 ? setMontageIdx(montageIdx + 1) : setMontage(false)}
-              className="max-h-[75vh] w-full rounded-2xl bg-slate-950 object-contain" />
-            <p className="mt-2 text-center text-xs text-slate-400">Clips play back-to-back, just like a pass-the-camera social video.</p>
+              className="max-h-[75vh] w-full rounded-2xl bg-white object-contain" />
+            <p className="mt-2 text-center text-xs text-zinc-600">Clips play back-to-back, just like a pass-the-camera social video.</p>
           </div>
         </div>
       )}
