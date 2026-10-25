@@ -11,45 +11,33 @@ export interface EmojiCategory {
 
 export const EMOJI_GROUPS: EmojiCategory[] = [
   {
-    label: "Desi & UP Adda",
-    icon: "🇮🇳",
+    label: "Gaming & Esports",
+    icon: "🎮",
     emojis: [
-      ["🙏", "namaste pranam ram ram jai ho dhanyawad thanks respect"],
-      ["🔥", "bhaukaal garda bawaal kattai zahar systumm fire lit"],
-      ["🤣", "hasi bakaiti lol lmao gajab beizzati funny"],
-      ["😂", "hasna tears laughing binod joke"],
-      ["💀", "maro mujhe maro dead khatam tata bye"],
-      ["🫡", "salute bhai ne bola karne ka guruji"],
-      ["👑", "jalwa king raja maharaj mirzapur boss"],
-      ["🦁", "sher babbar sher attitude up"],
-      ["😎", "systumm swag chacha vidhayak attitude"],
-      ["☕", "chai adrak tapri kulhad tea chuski"],
-      ["🫖", "ketli chaiwala tapri adrak elaichi"],
-      ["🥟", "samosa momos golgappa pani puri kachori chaat"],
-      ["🍛", "biryani chole chawal rajma paneer thali"],
-      ["🍲", "paneer tikka handi nihari kebab daawat"],
-      ["🌶️", "teekha mirchi nazar battu spicy"],
-      ["🧿", "nazar battu kala teeka evil eye safe"],
-      ["🏏", "cricket ipl sixer virat kohli dhoni rohit"],
-      ["🛺", "auto rickshaw tempo meter sharing ncr"],
-      ["🚙", "thar scorpio fortuner vip gedi"],
-      ["🪔", "diya deepawali arti shubh"],
-      ["🚩", "bhagwa jai shri ram hanuman mandir"],
-      ["🕉️", "om har har mahadev banaras kashi"],
-      ["🥁", "dhol baraat shaadi bhangra dance"],
-      ["🐍", "nagin dance been baraat"],
-      ["🎺", "band baaja baraat ipl"],
-      ["💸", "paisa hi paisa udhaar party kharcha"],
-      ["🤑", "scheme double paisa raju"],
-      ["🤝", "bhaichara dosti pakka वादा"],
-      ["🤦", "abe yaar gajab beizzati mattha"],
-      ["👀", "dekh raha hai binod पंचायत"],
-      ["🤡", "feku joker kat gaya"],
-      ["🥳", "party treat birthday masti"],
-      ["💃", "thumka dance sangeet"],
-      ["🕺", "baraat dance hero"],
-      ["⚡", "bijli transformer current jhatka"],
-      ["💯", "ekdam sahi 100 taka pakka"],
+      ["🏆", "trophy win champion mvp rank up"],
+      ["🎯", "aim flick target bullseye headshot precision"],
+      ["⚔️", "duel 1v1 challenge battle versus"],
+      ["🔥", "streak hot clutch fire lit"],
+      ["👑", "mvp king leader top frag"],
+      ["🎮", "controller game queue lobby arcade"],
+      ["🕹️", "arcade joystick retro match"],
+      ["⚡", "fast reflex speed apm instant"],
+      ["🧠", "iq 200iq calculated smart strat"],
+      ["💣", "bomb c4 defuse clutch"],
+      ["🛡️", "guard parry defense shield"],
+      ["🚀", "launch boost elo climb"],
+      ["🎲", "rng roll random queue"],
+      ["♟️", "chess strategy gambit"],
+      ["🥇", "first gold medal winner"],
+      ["🤝", "gg wp respect teamwork"],
+      ["🫡", "salute copy roger glhf"],
+      ["💀", "wiped ko eliminated rip"],
+      ["👀", "peek watch scout"],
+      ["💯", "clean perfect 100"],
+      ["⏱️", "timer speedrun clutch"],
+      ["📡", "ping comms intel"],
+      ["🔑", "key code unlock"],
+      ["💎", "diamond rank tier"],
     ],
   },
   {
@@ -576,7 +564,7 @@ export const EMOJI_GROUPS: EmojiCategory[] = [
       ["🚜", "tractor farm agriculture field machinery plowing harvest vehicle"],
       ["🛵", "motor scooter moped vespa city commute delivery two wheels ride"],
       ["🏍️", "motorcycle motorbike biker speed highway engine ride sport"],
-      ["🛺", "auto rickshaw tuk tuk india three wheels taxi street vehicle transport"],
+      ["🛺", "auto vehicle tuk tuk india three wheels taxi street vehicle transport"],
       ["🚲", "bicycle bike cycling pedal commute exercise green travel eco"],
       ["🛴", "kick scooter electric commute city micromobility two wheels"],
       ["🚨", "police car light emergency siren alarm alert flashing red blue warning"],
@@ -975,111 +963,70 @@ export const GIFS: GifItem[] = [
 export const gifUrl = (id: string) => `https://media.giphy.com/media/${id}/giphy.gif`;
 
 // ==========================================
-// 3. COLLABORATIVE GAME EXPANDED DATA (DESI + UP/DELHI EDITION)
+// 3. COLLABORATIVE & TACTICAL GAME DATA
 // ==========================================
 
 export const CIPHER_PHRASES = [
-  { phrase: "BHAUKAAL TIGHT HAI GURU", runes: "👑 🔥 🦁 ⚡ 🕶️ 🎯 💥 🚀" },
-  { phrase: "CHAI AUR SAMOSA PARTY", runes: "☕ 🥟 🫖 🌶️ 🎉 🥳 💸 ✨" },
-  { phrase: "DOSTI MEIN NO SORRY", runes: "🤝 ❤️ 🔥 🌟 🫡 🏆 💫 👑" },
-  { phrase: "APNA TIME AAYEGA BHAI", runes: "🚀 ⚡ 🌟 👑 🎤 🔥 💎 🏆" },
-  { phrase: "MUSKURAIYE AAP ADDE MEIN HAIN", runes: "🕌 ✨ 🌸 😊 🫖 👑 💫 🎶" },
+  { phrase: "CLUTCH OR KICK THIS ROUND", runes: "▲ ◆ ● ★ ■ ✦ ⬡ ❖" },
+  { phrase: "PRECISION BEATS PURE SPEED", runes: "🎯 ⚡ 🔥 👑 🛡️ 🚀 💎 🏆" },
+  { phrase: "VICTORY LOVES PREPARATION", runes: "⚔️ 🧠 🔑 📡 🌟 🎲 ♟️ 🥇" },
+  { phrase: "ZERO PANIC UNDER PRESSURE", runes: "🧊 🔥 ⚡ 🎯 🛡️ 🏆 👑 ✨" },
+  { phrase: "CLEAN COMMS WIN MATCHES", runes: "🎧 📡 🤝 ⚡ 🏆 🎯 🔑 🚀" },
 ];
 
 export const ASTRO_SYSTEMS = [
-  { name: "क्रायोजेनिक जुगाड़ वाल्व", icon: "🫧", req: "प्रेशर मीटर 80% — हरा बाईपास कोड डालो" },
-  { name: "हीट शील्ड कवच", icon: "🛡️", req: "सोलर डिफ्लेक्टर को लॉक करो" },
-  { name: "मुख्य इंजन थ्रस्टर", icon: "🚀", req: "अग्नि-बूस्टर नोज़ल चालू करो" },
-  { name: "इसरो रडार डिश", icon: "📡", req: "बेंगलुरु + लखनऊ स्टेशन से सिग्नल मिलाओ" },
-  { name: "चाय-थर्मस कूलिंग", icon: "☕", req: "क्रू केबिन का तापमान कंट्रोल करो" },
+  { name: "O2 Scrubber", icon: "🫧", req: "Stabilize pressure at 80% & enter override" },
+  { name: "Deflector Grid", icon: "🛡️", req: "Lock harmonic shield relay code" },
+  { name: "Main Thruster", icon: "🚀", req: "Re-engage vector ignition key" },
+  { name: "Comms Array", icon: "📡", req: "Sync telemetry beacon frequency" },
+  { name: "Thermal Loop", icon: "❄️", req: "Cycle coolant bypass valve" },
 ];
 
 export const REACTOR_FREQUENCIES = [
-  { name: "फेज़-1 कूलर लाइन", color: "from-blue-500 to-cyan-400", hex: "#06b6d4", note: "नीला फेज़ जोड़े" },
-  { name: "फेज़-2 एसी ग्रिड", color: "from-emerald-500 to-teal-400", hex: "#10b981", note: "हरा वोल्टेज" },
-  { name: "फेज़-3 मेन खंभा", color: "from-amber-500 to-yellow-400", hex: "#f59e0b", note: "पीला ट्रांसफार्मर" },
-  { name: "बूस्टर स्टेबलाइज़र", color: "from-fuchsia-500 to-rose-400", hex: "#d946ef", note: "गुलाबी हाई-पावर" },
+  { name: "ALPHA 432Hz", color: "from-sky-500 to-blue-600", hex: "#2563eb", note: "Blue Node" },
+  { name: "GAMMA 528Hz", color: "from-emerald-500 to-green-600", hex: "#16a34a", note: "Green Node" },
+  { name: "OMEGA 741Hz", color: "from-amber-400 to-yellow-500", hex: "#eab308", note: "Gold Node" },
+  { name: "DELTA 852Hz", color: "from-rose-500 to-red-600", hex: "#dc2626", note: "Red Node" },
 ];
 
 // ==========================================
-// 4. REALISTIC PORTRAIT AVATARS & PERSONAS
+// 4. CRISP INK-BORDERED PRO PORTRAITS & BOT ROSTER
 // ==========================================
-const SKIN_TONES = [
-  "#f4c7ab",
-  "#e0ac82",
-  "#c68652",
-  "#8d5524",
-  "#f1c27d",
-  "#d2996c",
-];
-const HAIR_TONES = [
-  "#1c1917",
-  "#292524",
-  "#451a03",
-  "#78350f",
-  "#0f172a",
-  "#3b0764",
-];
-const OUTFIT_TONES = [
-  ["#4f46e5", "#312e81"],
-  ["#0f766e", "#134e4a"],
-  ["#be123c", "#881337"],
-  ["#b45309", "#78350f"],
-  ["#7c3aed", "#4c1d95"],
-  ["#0369a1", "#0c4a6e"],
-];
+const SKIN_TONES = ["#f4c7ab", "#e0ac82", "#c68652", "#8d5524", "#f1c27d", "#d2996c"];
+const HAIR_TONES = ["#111111", "#27272a", "#451a03", "#78350f", "#1e1b4b", "#3f3f46"];
+const BG_TONES = ["#FEF08A", "#BBF7D0", "#DBEAFE", "#FECACA", "#E0E7FF", "#F3F0E6"];
+const SHIRT_TONES = ["#111111", "#1d4ed8", "#15803d", "#b91c1c", "#6d28d9", "#b45309"];
 
 export function makeAvatar(name: string, seedNum = 0): string {
   const hash =
     seedNum +
-    Array.from(name || "Guest").reduce((acc, ch) => acc + ch.charCodeAt(0) * 17, 0);
-  const hue = Math.abs(hash) % 360;
+    Array.from(name || "Player").reduce((acc, ch) => acc + ch.charCodeAt(0) * 17, 0);
+  const bg = BG_TONES[Math.abs(hash) % BG_TONES.length];
   const skin = SKIN_TONES[Math.abs(hash) % SKIN_TONES.length];
   const hair = HAIR_TONES[Math.abs(hash >> 1) % HAIR_TONES.length];
-  const [shirtA, shirtB] =
-    OUTFIT_TONES[Math.abs(hash >> 2) % OUTFIT_TONES.length];
+  const shirt = SHIRT_TONES[Math.abs(hash >> 2) % SHIRT_TONES.length];
   const hairStyle = Math.abs(hash >> 3) % 3;
-  const glasses = Math.abs(hash >> 4) % 3 === 0;
+  const visor = Math.abs(hash >> 4) % 3 === 0;
 
   const hairTop =
     hairStyle === 0
-      ? `<path d='M25 44 C25 22, 71 22, 71 44 C69 33, 59 29, 48 29 C37 29, 27 33, 25 44 Z' fill='${hair}'/>`
+      ? `<path d='M25 44 C25 22, 71 22, 71 44 C69 33, 59 29, 48 29 C37 29, 27 33, 25 44 Z' fill='${hair}' stroke='#111111' stroke-width='2'/>`
       : hairStyle === 1
-      ? `<path d='M22 58 C21 24, 75 24, 74 58 C71 40, 65 30, 48 30 C31 30, 25 40, 22 58 Z' fill='${hair}'/>`
-      : `<path d='M26 42 C24 20, 72 19, 70 42 C64 31, 34 31, 26 42 Z' fill='${hair}'/><circle cx='48' cy='23' r='8' fill='${hair}'/>`;
+      ? `<path d='M22 56 C21 24, 75 24, 74 56 C71 40, 65 30, 48 30 C31 30, 25 40, 22 56 Z' fill='${hair}' stroke='#111111' stroke-width='2'/>`
+      : `<path d='M26 42 C24 20, 72 19, 70 42 C64 31, 34 31, 26 42 Z' fill='${hair}' stroke='#111111' stroke-width='2'/>`;
 
-  const eyewear = glasses
-    ? `<g stroke='#e2e8f0' stroke-width='2.1' fill='rgba(15,23,42,0.18)'><rect x='33' y='44' width='12' height='8' rx='3'/><rect x='51' y='44' width='12' height='8' rx='3'/><line x1='45' y1='48' x2='51' y2='48'/></g>`
+  const eyewear = visor
+    ? `<rect x='32' y='43' width='32' height='9' rx='3' fill='#111111'/><line x1='35' y1='46' x2='45' y2='46' stroke='#FFE500' stroke-width='2'/>`
     : "";
 
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 96 96'>
-    <defs>
-      <radialGradient id='bg' cx='30%' cy='20%' r='80%'>
-        <stop offset='0%' stop-color='hsl(${hue}, 65%, 36%)'/>
-        <stop offset='100%' stop-color='#0f172a'/>
-      </radialGradient>
-      <linearGradient id='shirt' x1='0' y1='0' x2='0' y2='1'>
-        <stop offset='0%' stop-color='${shirtA}'/>
-        <stop offset='100%' stop-color='${shirtB}'/>
-      </linearGradient>
-    </defs>
-    <rect width='96' height='96' rx='48' fill='url(#bg)'/>
-    <circle cx='48' cy='48' r='46' fill='none' stroke='rgba(255,255,255,0.14)' stroke-width='1.5'/>
-    <path d='M18 96 C22 73, 35 69, 48 69 C61 69, 74 73, 78 96 Z' fill='url(#shirt)'/>
-    <path d='M39 69 L48 78 L57 69' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='2.2'/>
-    <rect x='42' y='58' width='12' height='14' rx='5' fill='${skin}'/>
-    <ellipse cx='48' cy='61' rx='7' ry='3' fill='rgba(0,0,0,0.14)'/>
-    <circle cx='28.5' cy='49' r='4.2' fill='${skin}'/>
-    <circle cx='67.5' cy='49' r='4.2' fill='${skin}'/>
-    <rect x='29' y='28' width='38' height='40' rx='19' fill='${skin}'/>
-    <circle cx='39.5' cy='48' r='2.3' fill='#0f172a'/>
-    <circle cx='56.5' cy='48' r='2.3' fill='#0f172a'/>
-    <circle cx='40.3' cy='47.2' r='0.75' fill='#ffffff'/>
-    <circle cx='57.3' cy='47.2' r='0.75' fill='#ffffff'/>
-    <path d='M35.5 42.5 Q39.5 40.5 43.5 42.5' fill='none' stroke='${hair}' stroke-width='2' stroke-linecap='round'/>
-    <path d='M52.5 42.5 Q56.5 40.5 60.5 42.5' fill='none' stroke='${hair}' stroke-width='2' stroke-linecap='round'/>
-    <path d='M46.5 50.5 Q48 54 49.5 53' fill='none' stroke='rgba(0,0,0,0.22)' stroke-width='1.5' stroke-linecap='round'/>
-    <path d='M42 58.5 Q48 63 54 58.5' fill='none' stroke='#7c2d12' stroke-width='2.2' stroke-linecap='round'/>
+    <rect x='3' y='3' width='90' height='90' rx='45' fill='${bg}' stroke='#111111' stroke-width='4'/>
+    <path d='M18 92 C22 72, 35 68, 48 68 C61 68, 74 72, 78 92 Z' fill='${shirt}' stroke='#111111' stroke-width='2.5'/>
+    <rect x='42' y='58' width='12' height='13' rx='5' fill='${skin}' stroke='#111111' stroke-width='2'/>
+    <rect x='29' y='28' width='38' height='40' rx='19' fill='${skin}' stroke='#111111' stroke-width='2.5'/>
+    <circle cx='39.5' cy='48' r='2.5' fill='#111111'/>
+    <circle cx='56.5' cy='48' r='2.5' fill='#111111'/>
+    <path d='M42 58.5 Q48 62.5 54 58.5' fill='none' stroke='#111111' stroke-width='2.4' stroke-linecap='round'/>
     ${eyewear}
     ${hairTop}
   </svg>`;
@@ -1089,44 +1036,45 @@ export function makeAvatar(name: string, seedNum = 0): string {
 export const AVATAR_SEEDS = [14, 77, 143, 219, 286, 351];
 
 export const STATUS_PRESETS = [
-  "भौकाल टाइट है 🔥",
-  "अदरक वाली चाय मूड ☕",
-  "Systumm हैंग करने आया हूँ 😎",
-  "नोएडा/दिल्ली ट्रैफिक में 🚗",
-  "बस एक गेम और भाई 🎮",
-  "मम्मी के ताने सुन रहा हूँ 😭",
+  "Ready to queue 🎯",
+  "Ranked grind 🏆",
+  "1v1 open ⚔️",
+  "IGL / Shotcaller 🎧",
+  "Warming up ⚡",
+  "AFK 2m ☕",
 ];
 
 export const BOTS: Member[] = [
   {
-    id: "bot-guddu",
-    name: "Guddu Bhaiya",
-    avatar: makeAvatar("Guddu", 24),
-    bio: "भौकाल टाइट · बनारस/मिर्ज़ापुर ☕",
+    id: "bot-apex",
+    name: "Apex",
+    avatar: makeAvatar("Apex", 24),
+    bio: "Entry Fragger · Aim Lab Ace",
+    elo: 1380,
+    wins: 14,
+    streak: 3,
     lastSeen: 0,
     bot: true,
   },
   {
-    id: "bot-rohan",
-    name: "Rohan NCR",
-    avatar: makeAvatar("Rohan", 210),
-    bio: "नोएडा Sector-18 · मोमोज़ + गेम्स 🔥",
+    id: "bot-valkyrie",
+    name: "Valkyrie",
+    avatar: makeAvatar("Valkyrie", 210),
+    bio: "Tactician · Connect 4 Specialist",
+    elo: 1265,
+    wins: 9,
+    streak: 2,
     lastSeen: 0,
     bot: true,
   },
   {
-    id: "bot-ananya",
-    name: "Ananya",
-    avatar: makeAvatar("Ananya", 330),
-    bio: "लखनऊ तहज़ीब · ट्रिप प्लानर ✨",
-    lastSeen: 0,
-    bot: true,
-  },
-  {
-    id: "bot-chintu",
-    name: "Chintu Jugadu",
-    avatar: makeAvatar("Chintu", 140),
-    bio: "कानपुर/मेरठ · हर मर्ज़ का जुगाड़ 😎",
+    id: "bot-kova",
+    name: "Kova",
+    avatar: makeAvatar("Kova", 330),
+    bio: "IGL · Co-op Defuse Lead",
+    elo: 1190,
+    wins: 7,
+    streak: 1,
     lastSeen: 0,
     bot: true,
   },
@@ -1134,102 +1082,50 @@ export const BOTS: Member[] = [
 
 export const BOT_REPLIES: { match: RegExp; replies: string[] }[] = [
   {
-    match: /\b(hi|hello|hey|namaste|pranam|ram ram|aur bhai|kya haal|yo|morning|evening|sup)\b/i,
+    match: /\b(hi|hello|hey|yo|sup|glhf|gg|wp)\b/i,
     replies: [
-      "अरे राम-राम {name} भाई! 🙏 आओ बैठो, आज अड्डे पे क्या माहौल है?",
-      "ओये {name} आ गया!! 🔥 और बता भाई क्या हाल-चाल, सब बढ़िया?",
-      "नमस्ते जनाब {name}! ✨ चाय मँगवाएँ या सीधा GAME लगाएँ?",
+      "GLHF {name}! Ready whenever you want to queue.",
+      "Yo {name} — comms clear. Open Queue or Arcade to start a round.",
+      "GG! Ready to run another match anytime.",
     ],
   },
   {
-    match: /\b(kaise ho|kaisa hai|sab badhiya|how are you|whats up|what's up|kya chal raha)\b/i,
+    match: /\b(game|play|bored|arcade|match|round|start)\b/i,
     replies: [
-      "एकदम कट्टई ज़हर भाई! 😎 बस तेरा ही इंतज़ार था, खोल 🎮 Arcade!",
-      "सब फर्स्ट क्लास गुरु! ☕ शाम की चाय चल रही है, बता कौनसा गेम फोड़ना है?",
-      "मौज में हैं भाई {name}! तू सुना, आज बकैती करनी है या गोलगप्पा चैलेंज?",
+      "Locked in. Hit ⚔️ Queue for a ready check, or type GAME to launch immediately.",
+      "Down for anything — Flick Aim Lab, Strike·Guard·Feint, or Four-in-a-Row?",
+      "Ready on my end {name}. Let's put ELO on the line 🎯",
     ],
   },
   {
-    match: /\b(game|play|khel|bored|arcade|match|laga|lagao)\b/i,
+    match: /\b(trip|travel|flight|train|hotel|itinerary|weekend|movie|food)\b/i,
     replies: [
-      "अरे नेकी और पूछ-पूछ! सीधा बड़े अक्षरों में GAME लिख या 🎮 Arcade खोल — गर्दा उड़ा देते हैं! 🔥",
-      "चलो भाई हो जाए दो-दो हाथ! सुतली बम डिफ्यूज़ल या ऑटो भैया मोल-भाव? 🧨🛺",
-      "तैयार हूँ भाई {name}! हारने वाला समोसा पार्टी देगा पक्का डन! 🥟😂",
+      "Open 🔎 Intel to pull live schedules, weather, or split estimates and drop a card here.",
+      "Throw a card from 🔎 Intel or run a quick /poll so the lobby can vote.",
     ],
   },
   {
-    match: /\b(chai|tea|samosa|momos|golgappa|pani puri|biryani|jalebi|paratha|maggi|hungry|bhookh|khana|party|treat)\b/i,
+    match: /\b(thanks|thank you|thx|nt|nice try)\b/i,
     replies: [
-      "अरे यार नाम मत ले मुँह में पानी आ गया 🤤 अभी 🥟 गोलगप्पा vs मोमोज़ गेम चला या 🔎 Search में ढूँढ!",
-      "छोटू दो स्पेशल कुल्हड़ वाली अदरक चाय और गरम समोसे इधर भी ला भाई! ☕🥟",
-      "भाई बातें घुमा मत — पार्टी कब और कहाँ दे रहा है ये क्लियर बता पहले! 💸🤣",
-    ],
-  },
-  {
-    match: /\b(bhaukaal|systumm|system|jalwa|garda|bawaal|zahar|sher|king|attitude)\b/i,
-    replies: [
-      "जलवा है हमारा यहाँ!! 👑🔥 पूरा मोहल्ला जानता है भाई!",
-      "Systumm फाड़ देंगे गुरु! 🕶️⚡ बस एक बार हॉर्न बजा दे 📯!",
-      "अरे कट्टई बवाल माहौल बना दिए {name} भैया! 💯🔥",
-    ],
-  },
-  {
-    match: /\b(trip|travel|vacation|ghoomne|chale|flight|train|hotel|itinerary|weekend|road trip)\b/i,
-    replies: [
-      "ओ भाई ट्रिप का नाम लेते ही बैग पैक है मेरा! 🧳 बस 🔎 Search दबा के ट्रेन और बजट कार्ड डाल दे, वोटिंग कराते हैं!",
-      "देख रहा है बिनोद... प्लान हर बार बनता है, इस बार पक्का चलना है कोई मम्मी का बहाना नहीं बनाएगा! 😂🧭",
-      "चलो लॉक करते हैं! 🔎 Search में देखो Vande Bharat खाली है या गाड़ी निकालें? 🚆🚙",
-    ],
-  },
-  {
-    match: /\b(movie|cinema|tickets|film|popcorn|showtime|picture)\b/i,
-    replies: [
-      "पिक्चर का प्लान डन समझो! 🍿 कोने वाली रिक्लाइनर सीट अपनी है — 🔎 Search से शो-टाइम कार्ड डाल!",
-      "इंटरवल के समोसे और पॉपकॉर्न तेरी तरफ़ से भाई {name} 🎬😂",
-    ],
-  },
-  {
-    match: /\b(cricket|ipl|kohli|virat|dhoni|rohit|india|match|sixer)\b/i,
-    replies: [
-      "एक ही तो दिल है कितनी बार जीतोगे भाई!! 🏏🇮🇳 जरा 📯 दबाके IPL हॉर्न तो बजा दे!",
-      "आज तो स्टेडियम वाला माहौल बन गया गुरु! 🏏🔥",
-    ],
-  },
-  {
-    match: /\b(thanks|thank you|shukriya|dhanyawad|love you|bhai hai tu)\b/i,
-    replies: [
-      "अरे दोस्ती में नो सॉरी नो थैंक्यू भाई मेरे! 🫂❤️",
-      "हमेशा साथ हैं गुरु {name}! भाईचारा ऑन टॉप! 🤝🔥",
-    ],
-  },
-  {
-    match: /\b(lol|haha|lmao|rofl|hahaha|😂|🤣|💀|beizzati|binod)\b/i,
-    replies: [
-      "अबे ग़ज़ब बेइज़्ज़ती है यार 🤣🤣💀",
-      "ओ भाई मारो मुझे मारो, पेट दुख गया हँस-हँस के 😂😂",
-      "देख रहा है बिनोद... किस लेवल की कॉमेडी चल रही है यहाँ ☕🤣",
+      "Anytime {name} 🤝",
+      "Clean teamwork. Next round's ours.",
     ],
   },
 ];
 
 export const BOT_GENERIC = [
-  "एकदम सही पकड़े हैं गुरु! 💯🔥",
-  "अरे वाह भाई वाह, बात में दम तो है 😎",
-  "सही कह रहा है भाई — एक लाइव /poll डाल दे दूध का दूध पानी का पानी हो जाएगा! 🗳️",
-  "माहौल तो पूरा सेट कर दिया आज अड्डे का ✨🔥",
-  "अच्छा जी? फिर आगे क्या हुआ बता ज़रा 👀☕",
+  "Solid call. Ready to queue whenever.",
+  "Agreed 💯",
+  "Locked in.",
 ];
 
 export const BOT_IDLE = [
-  "अरे इतना सन्नाटा क्यों है भाई? 🧐 कोई GAME लिखो या 📯 प्रेशर हॉर्न बजाओ ज़रा!",
-  "टिप: ऊपर वाले 🔗 Invite लिंक को WhatsApp पे दोस्तों को भेजो — सब अलग-अलग फोन से लाइव जुड़ के खेलेंगे! 🔥",
-  "शाम हो रही है गुरु... /chai लिखो या 🎲 मसाला पोल डालो ग्रुप में! ☕🥟",
-  "चलो एक राउंड 🛺 'ऑटो भैया मोल-भाव' या 🎬 'मिर्ज़ापुर डायलॉग बाज़ी' हो जाए! 🎮 Arcade खोलो!",
+  "Lobby's open — click ⚔️ Queue to post a Ready-Check card or share the room link to invite friends.",
+  "Tip: every completed match updates your live Rank & ELO in the Standings tab.",
 ];
 
 export const BOT_GAME_CHEER = [
-  "गर्दा उड़ा दिए गुरु!! पूरा अड्डा हिल गया आज! 🔥🏆",
-  "ये हुई ना UP-दिल्ली वाली बात — कट्टई ज़हर टीमवर्क! 👑🙌",
-  "जीत की खुशी में अब समोसा + जलेबी पार्टी पक्की समझो! 🥟🎉",
-  "एकतरफ़ा मुकाबला बना दिए भाई लोग! 🫡🔥",
+  "GG WP — clean execution across the board 🏆",
+  "Clutch finish. Hit Rematch if you want to run it back.",
+  " sharp reads all round — ELO well earned.",
 ];

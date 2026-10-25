@@ -6,6 +6,9 @@ export interface User {
   avatar: string;
   bio?: string;
   device?: "mobile" | "desktop";
+  elo?: number;
+  wins?: number;
+  streak?: number;
 }
 
 export interface Member extends User {
@@ -30,7 +33,7 @@ export interface Attachment {
   ephemeral?: boolean;
 }
 
-/* ---------- search cards & expressive rich objects ---------- */
+/* ---------- Search & Intel Cards ---------- */
 export type Vertical =
   | "fact"
   | "trains"
@@ -69,6 +72,21 @@ export interface SquadPoll {
   question: string;
   options: PollOption[];
   createdBy: string;
+}
+
+export interface MatchLobby {
+  gameId: GameId;
+  hostName: string;
+  readyNames: string[];
+  launched?: boolean;
+}
+
+export interface MatchResultCard {
+  gameId: GameId;
+  summary: string;
+  mvp?: string;
+  eloDelta?: number;
+  standings: { name: string; score: number }[];
 }
 
 export interface ItineraryDay {
@@ -116,18 +134,21 @@ export interface Message {
   attachment?: Attachment;
   card?: SearchCard;
   poll?: SquadPoll;
+  lobby?: MatchLobby;
+  matchResult?: MatchResultCard;
   replyTo?: ReplyPreview;
   reactions?: Record<string, string[]>;
   seenBy?: string[];
   editedAt?: number;
   delivery?: "sending" | "sent" | "cloud";
+  senderElo?: number;
 }
 
-/* ---------- 18 UP/Delhi + Global Multiplayer Squad Games ---------- */
+/* ---------- 18 Competitive & Co-op Multiplayer Modes ---------- */
 export type GameId =
-  | "dialogue"
-  | "golgappa"
-  | "bargain"
+  | "aimlab"
+  | "sector"
+  | "duel"
   | "bomb"
   | "astro"
   | "reactor"
@@ -171,140 +192,145 @@ export interface LiveGame {
   players: GamePlayer[];
   turn: number;
   feed: FeedLine[];
-  data: any;
   result?: string;
   bonus?: string;
+  data: Record<string, any>;
 }
 
-export const GAME_META: Record<
-  GameId,
-  { name: string; emoji: string; blurb: string; minutes: string; tag: string }
-> = {
-  dialogue: {
-    name: "फ़िल्मी & मिर्ज़ापुर डायलॉग बाज़ी",
-    emoji: "🎬",
-    blurb: "Mirzapur, Panchayat, Hera Pheri & Bollywood के आइकॉनिक डायलॉग सबसे तेज़ पहचानो!",
+export interface GameMeta {
+  name: string;
+  emoji: string;
+  tag: string;
+  minutes: string;
+  blurb: string;
+}
+
+export const GAME_META: Record<GameId, GameMeta> = {
+  aimlab: {
+    name: "Flick Aim Lab",
+    emoji: "🎯",
+    tag: "REFLEX · AIM",
+    minutes: "60s",
+    blurb: "High-precision 4x4 target grid tracking live reaction time (ms), combo streak & accuracy.",
+  },
+  sector: {
+    name: "Sector Recall",
+    emoji: "🧠",
+    tag: "MEMORY · TACTICAL",
     minutes: "75s",
-    tag: "Desi Buzzer Quiz",
+    blurb: "Memorize hostile radar tiles in 1.2s flashes and sweep 4 escalating waves cleanly.",
   },
-  golgappa: {
-    name: "गोलगप्पा vs मोमोज़ ठेला चैलेंज",
-    emoji: "🥟",
-    blurb: "चाट ठेले से गोलगप्पे, मोमोज़, जलेबी और कुल्हड़ चाय लपक लो — तीखी मिर्ची बम से बचके!",
-    minutes: "45s",
-    tag: "Chaat Speed Co-op",
-  },
-  bargain: {
-    name: "NCR ऑटो भैया मोल-भाव (Bargaining)",
-    emoji: "🛺",
-    blurb: "'मीटर खराब है भैया!' — असली दिल्ली/UP स्टाइल में किराया ₹450 से घटा के सही दाम पे लाओ!",
-    minutes: "80s",
-    tag: "UP/NCR Jugaad",
+  duel: {
+    name: "Strike · Guard · Feint",
+    emoji: "⚔️",
+    tag: "MINDGAME DUEL",
+    minutes: "90s",
+    blurb: "High-stakes combat reads with HP bars, parries, counter crits & knockout finishes.",
   },
   bomb: {
-    name: "सुतली बम डिफ्यूज़ल (Sutli Bomb)",
-    emoji: "🧨",
-    blurb: "मुन्ना भैया का जोड़ा हुआ 5-तार वाला बम! सीक्रेट सुराग मिलाकर सही तार काटो वरना धमाका!",
+    name: "Defuse Protocol",
+    emoji: "💣",
+    tag: "CO-OP INTEL",
     minutes: "75s",
-    tag: "Tactical Co-op",
+    blurb: "Cross-check wire schematics across teammates and snip the single safe lead.",
   },
   astro: {
-    name: "ISRO जुगाड़ रॉकेट रिपेयर",
+    name: "Orbital Repair",
     emoji: "🚀",
-    blurb: "कंट्रोल रूम अलर्ट! एक-दूसरे को पासकोड बताओ और चारों इंजन कंसोल चालू करो!",
+    tag: "CO-OP OPS",
     minutes: "80s",
-    tag: "Jugaad Sim",
+    blurb: "Relay override codes across stations to restore hull systems before lock-out.",
   },
   reactor: {
-    name: "बिजली विभाग ट्रांसफार्मर सिंक",
+    name: "Core Sync",
     emoji: "⚡",
-    blurb: "मोहल्ले की लाइट कटने वाली है! चारों फेज़ को टाइम पे सिंक करो ताकि कूलर-एसी चलते रहें!",
+    tag: "TIMING SYNC",
     minutes: "60s",
-    tag: "Mohalla Grid",
+    blurb: "Trigger frequency nodes in exact sequence without overheating the core.",
   },
   cipher: {
-    name: "सीक्रेट पर्चा डिकोड (Cipher Hack)",
-    emoji: "🕵️",
-    blurb: "सबके पास आधे-अधूरे कोड हैं — मिलके गुप्त संदेश का एक-एक शब्द खोलो!",
+    name: "Cryptogram",
+    emoji: "🔐",
+    tag: "DECODE",
     minutes: "90s",
-    tag: " detective Adda",
+    blurb: "Combine partial key shards across the squad to crack the encrypted phrase.",
   },
   chain: {
-    name: "शब्द अंताक्षरी रिले (Word Chain)",
-    emoji: "🔗",
-    blurb: "आखिरी अक्षर से नया शब्द जोड़ो — चेन टूटने मत देना गुरु!",
+    name: "Lexicon Relay",
+    emoji: "🔤",
+    tag: "SPEED WORD",
     minutes: "90s",
-    tag: "Antakshari Relay",
+    blurb: "Rapid turn-based word chain starting with the previous word's final letter.",
   },
   blitz: {
-    name: "दशहरा मेला गुब्बारा शूटिंग",
-    emoji: "🎯",
-    blurb: "मेले की बंदूक स्टॉल! पूरा ग्रुप एक साथ लाइव निशाने उड़ाएगा!",
+    name: "Target Blitz",
+    emoji: "⚡",
+    tag: "APM RACE",
     minutes: "35s",
-    tag: "Mela Reflex",
+    blurb: "Squad-wide live target sprint — clear the quota before the buzzer.",
   },
   codebreak: {
-    name: "तिजोरी का ताला तोड़ो (Code Break)",
-    emoji: "🔐",
-    blurb: "4 प्रतीकों वाला गुप्त लॉक 8 बारी में बूझो — असली दिमागी कसरत!",
+    name: "Vault Breaker",
+    emoji: "🧩",
+    tag: "LOGIC",
     minutes: "90s",
-    tag: " sharp Dimag",
+    blurb: "Deduce the 4-symbol master lock using exact and partial match feedback.",
   },
   story: {
-    name: "बकैती कहानी रिले (Story Adda)",
-    emoji: "📖",
-    blurb: "बारी-बारी 2–8 शब्द जोड़कर सबसे बवाल और हँसाने वाली कहानी बनाओ!",
+    name: "Lore Builder",
+    emoji: "📜",
+    tag: "PARTY CO-OP",
     minutes: "100s",
-    tag: "Full Bakaiti",
+    blurb: "Co-write a fast turn-by-turn campaign log one line at a time.",
   },
   tictactoe: {
-    name: "ज़ीरो-काटा मुकाबला (Zero-Katta)",
-    emoji: "⭕",
-    blurb: "क्लासिक स्कूल बेंच वाला ज़ीरो-काटा — Team काटा (✕) बनाम Team ज़ीरो (○)!",
+    name: "Tic-Tac-Toe Pro",
+    emoji: "❌",
+    tag: "1v1 CLASSIC",
     minutes: "75s",
-    tag: "School Classic",
+    blurb: "Fast tactical 3x3 board duel with instant turn rotation.",
   },
   connect4: {
-    name: "चार-गोटी Connect Showdown",
+    name: "Four-in-a-Row",
     emoji: "🔴",
-    blurb: "लाल और सुनहरी गोटियाँ गिराओ — जो टीम पहले 4 लाइन से जोड़ेगी उसकी जीत!",
+    tag: "1v1 STRATEGY",
     minutes: "100s",
-    tag: "Adda Board",
+    blurb: "7x6 gravity grid — connect four discs horizontally, vertically, or diagonally.",
   },
   slide: {
-    name: "नंबर पहेली स्लाइड (8-Puzzle)",
-    emoji: "🧩",
-    blurb: "एक चाल तुम, एक चाल दोस्त — 1 से 8 की गिनती लाइन में सेट करो!",
+    name: "15-Slide Sprint",
+    emoji: "🔢",
+    tag: "SPEED PUZZLE",
     minutes: "120s",
-    tag: "Dimagi Relay",
+    blurb: "Solvable sliding tile race — lowest move count and fastest solve wins.",
   },
   wikirace: {
-    name: "WikiRace इंडिया स्पेशल",
-    emoji: "🏁",
-    blurb: "ताजमहल से बनारस या समोसे से उत्तर प्रदेश — असली विकिपीडिया लिंक्स से सबसे पहले पहुँचो!",
+    name: "Wiki Speedrun",
+    emoji: "🌐",
+    tag: "LIVE RACE",
     minutes: "180s",
-    tag: "Live Web Race",
+    blurb: "Navigate real Wikipedia articles from start to target in minimum clicks.",
   },
   controller: {
-    name: "पास द कंट्रोलर रील",
+    name: "Pass the Controller",
     emoji: "🎮",
-    blurb: "अपना स्वैग रिकॉर्ड करो, PASS दबाओ और कैमरा सीधे अगले दोस्त पर कट!",
+    tag: "VIDEO RELAY",
     minutes: "150s",
-    tag: "Desi Reel Cut",
+    blurb: "8-second webcam relay stitched into a live room highlight reel.",
   },
   npc: {
-    name: "सदर बाज़ार NPC वॉक",
-    emoji: "🚶",
-    blurb: "30 सेकंड का कैमरा चैलेंज — GTA के अटके हुए NPC जैसी चाल दिखाओ!",
+    name: "NPC Challenge",
+    emoji: "🤖",
+    tag: "VIDEO CHALLENGE",
     minutes: "150s",
-    tag: "Funny Camera",
+    blurb: "30-second physics emote challenge voted live by the lobby.",
   },
   desk: {
-    name: "मम्मी आ रहीं हैं — 15s कमरा साफ़!",
-    emoji: "🧹",
-    blurb: "चप्पल उड़ने से पहले 15 सेकंड में मेज़/कमरा सेट करो — देसी आर्केड बीट के साथ!",
+    name: "Setup Check",
+    emoji: "🖥️",
+    tag: "15S SPEEDRUN",
     minutes: "150s",
-    tag: "Mummy Alert!",
+    blurb: "15-second battle-station speedrun with synthesized arcade audio.",
   },
 };
 
@@ -314,9 +340,9 @@ export type BusEvent =
   | { t: "del"; id: string }
   | { t: "seen"; reader: string; ids: string[] }
   | { t: "typing"; uid: string; name: string; until: number }
-  | { t: "sound"; soundId: SoundDropId; by: string }
   | { t: "game"; g: LiveGame | null }
-  | { t: "presence" };
+  | { t: "presence" }
+  | { t: "sound"; soundId: SoundDropId; by: string };
 
 export const uid = () =>
-  Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);

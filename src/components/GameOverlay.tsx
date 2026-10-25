@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { LiveGame, User } from "../lib/types";
+import type { GameId, LiveGame, User } from "../lib/types";
 import { GAME_META } from "../lib/types";
 import {
   BOT_STORY_BITS,
@@ -51,15 +51,14 @@ interface Props {
   mutate: (fn: (g: LiveGame) => LiveGame | null) => void;
   finish: (result: string, bonus?: string) => void;
   onAbort: () => void;
+  onRematch?: (gameId: GameId) => void;
 }
 
 const BOT_TALK = [
-  "अरे आराम से देख के गुरु, अपना ही राउंड है! 👀🔥",
-  "रुको ज़रा... पैनल पे क्लू चेक कर रहा हूँ! 🧐",
-  "पूरा तालमेल रखो पलटन, गर्दा उड़ा देंगे! 🤝⚡",
-  "एकदम कड़क मूव भाई — लॉक कर दो! 🎯👑",
-  "हारने वाला समोसा + चाय पिलाएगा याद रखना! 🥟☕",
-  "भौकाल टाइट चल रहा है टीम का! 🔥",
+  "Comms clear — watching my sector 🎯",
+  "Locked in, make the call 🤝",
+  "Clean pace everyone 🔥",
+  "Ready on next rotation ⚡",
 ];
 
 export default function GameOverlay({
@@ -70,6 +69,7 @@ export default function GameOverlay({
   mutate,
   finish,
   onAbort,
+  onRematch,
 }: Props) {
   const meta = GAME_META[g.id];
   const [left, setLeft] = useState(
@@ -88,18 +88,15 @@ export default function GameOverlay({
     if (g.phase === "done") sounds.playFanfare();
   }, [g.phase]);
 
-  /* Synced MM:SS countdown */
   useEffect(() => {
     const t = setInterval(() => {
       const s = Math.max(0, Math.ceil((g.endsAt - Date.now()) / 1000));
       setLeft(s);
-      if (s <= 10 && s > 0) {
-        sounds.playTick();
-      }
+      if (s <= 10 && s > 0) sounds.playTick();
       if (s === 0 && !endedRef.current && g.phase === "play" && !g.data?.ready) {
         endedRef.current = true;
         sounds.playError();
-        finish("time expired — the squad gave it everything ⏱");
+        finish("Time expired — match over");
       }
     }, 1000);
     return () => clearInterval(t);
@@ -109,15 +106,14 @@ export default function GameOverlay({
     feedRef.current?.scrollTo({ top: 99999, behavior: "smooth" });
   }, [g.feed.length]);
 
-  /* ---------- Smart Solo-Bot Teammate Simulator ---------- */
+  /* ---------- Solo AI Sparring & Co-op Teammate Simulator ---------- */
   useEffect(() => {
     if (!isLeader || g.phase === "done") return;
     const bots = g.players.filter((p) => p.bot);
     if (!bots.length) return;
     const timers: number[] = [];
 
-    // Occasional natural comms line
-    if (g.feed.length < 10) {
+    if (g.feed.length < 6) {
       timers.push(
         window.setTimeout(() => {
           const b = bots[Math.floor(Math.random() * bots.length)];
@@ -128,7 +124,7 @@ export default function GameOverlay({
               ts: Date.now(),
             })
           );
-        }, 3200 + Math.random() * 3500)
+        }, 3800 + Math.random() * 3500)
       );
     }
 
@@ -146,11 +142,11 @@ export default function GameOverlay({
                 ? c2
                 : feed(c2, {
                     name: b.name,
-                    text: `My schematic says: ${clue.replace(/\*\*/g, "")}`,
+                    text: `Intel: ${clue.replace(/\*\*/g, "")}`,
                     ts: Date.now(),
                   })
             );
-          }, 1800 + i * 3200)
+          }, 1600 + i * 2600)
         );
       });
     }
@@ -170,11 +166,11 @@ export default function GameOverlay({
                   ? c2
                   : feed(c2, {
                       name: b.name,
-                      text: `📡 Override key for ${mod.name}: [${mod.code}]`,
+                      text: `Override code for ${mod.name}: [${mod.code}]`,
                       ts: Date.now(),
                     })
               );
-            }, 2200 + i * 2600)
+            }, 2000 + i * 2400)
           );
         }
       });
@@ -197,11 +193,11 @@ export default function GameOverlay({
                   ? c2
                   : feed(c2, {
                       name: b.name,
-                      text: `My cipher keys: ${shard}`,
+                      text: `Key shard: ${shard}`,
                       ts: Date.now(),
                     })
               );
-            }, 2000 + i * 2800)
+            }, 1900 + i * 2500)
           );
         }
       });
@@ -210,8 +206,8 @@ export default function GameOverlay({
     if (cur?.bot) {
       const delay =
         g.id === "tictactoe" || g.id === "connect4"
-          ? 750 + Math.random() * 550
-          : 2200 + Math.random() * 1600;
+          ? 700 + Math.random() * 500
+          : 2000 + Math.random() * 1400;
       timers.push(
         window.setTimeout(() => {
           let outcome: string | null = null;
@@ -232,14 +228,8 @@ export default function GameOverlay({
               const won = tttWinner(board);
               const moves = d.moves + 1;
               sounds.playClack();
-              if (won)
-                outcome = `${cur.name} completed three ${
-                  mark === 0 ? "X" : "O"
-                } marks — ${
-                  mark === 0 ? "Team X" : "Team O"
-                } wins Tic-Tac-Toe ⭕`;
-              else if (moves === 9)
-                outcome = "the shared Tic-Tac-Toe board ended in a draw 🤝";
+              if (won) outcome = `${cur.name} won Tic-Tac-Toe Pro`;
+              else if (moves === 9) outcome = "Tic-Tac-Toe Pro ended in a draw";
               return advance(
                 bumpScore(
                   {
@@ -253,7 +243,7 @@ export default function GameOverlay({
                     },
                   },
                   cur.uid,
-                  won ? 5 : 1
+                  won ? 15 : 2
                 )
               );
             }
@@ -268,12 +258,8 @@ export default function GameOverlay({
               const won = c4Winner(board, row, col, mark);
               const moves = d.moves + 1;
               sounds.playClack();
-              if (won)
-                outcome = `${cur.name} connected four ${
-                  mark === 0 ? "crimson" : "gold"
-                } discs — ${mark === 0 ? "Red" : "Gold"} team wins 🔴`;
-              else if (moves === 42)
-                outcome = "Connect Four filled the whole board — squad draw 🤝";
+              if (won) outcome = `${cur.name} won Four-in-a-Row`;
+              else if (moves === 42) outcome = "Four-in-a-Row ended in a draw";
               return advance(
                 bumpScore(
                   {
@@ -287,7 +273,7 @@ export default function GameOverlay({
                     },
                   },
                   cur.uid,
-                  won ? 6 : 1
+                  won ? 20 : 2
                 )
               );
             }
@@ -305,17 +291,17 @@ export default function GameOverlay({
                 return advance(
                   feed(c2, {
                     name: cur.name,
-                    text: "Passing baton to next teammate →",
+                    text: "Passing turn →",
                     ts: Date.now(),
                   })
                 );
               }
               const words = [...d.words, { word: w, by: cur.name }];
               if (words.length >= d.target) {
-                outcome = `the squad linked an unbroken ${words.length}-word chain 🔗`;
+                outcome = `Lexicon Relay cleared (${words.length} words)`;
               }
               const n = advance(
-                bumpScore({ ...c2, data: { ...d, words } }, cur.uid, 1)
+                bumpScore({ ...c2, data: { ...d, words } }, cur.uid, 5)
               );
               return feed(n, {
                 name: cur.name,
@@ -333,20 +319,20 @@ export default function GameOverlay({
                 { by: cur.name, guess, exact: s.exact, partial: s.partial },
               ];
               if (s.exact === 4) {
-                outcome = `${cur.name} cracked the secret vault code in ${guesses.length} turns 🧩`;
+                outcome = `${cur.name} cracked Vault Breaker in ${guesses.length} turns`;
               } else if (guesses.length >= d.maxGuesses) {
-                outcome = `vault locked — secret sequence was ${d.code
+                outcome = `Vault locked — code was ${d.code
                   .map((i: number) => CODE_SYMBOLS[i])
                   .join("")}`;
               }
               const n = advance(
-                bumpScore({ ...c2, data: { ...d, guesses } }, cur.uid, s.exact)
+                bumpScore({ ...c2, data: { ...d, guesses } }, cur.uid, s.exact * 4)
               );
               return feed(n, {
                 name: cur.name,
                 text: `tested ${guess
                   .map((i: number) => CODE_SYMBOLS[i])
-                  .join("")} → ${s.exact}🎯 ${s.partial}🔆`,
+                  .join("")} → ${s.exact} exact, ${s.partial} partial`,
                 ts: Date.now(),
                 sys: true,
               });
@@ -359,10 +345,10 @@ export default function GameOverlay({
                 ];
               const parts = [...d.parts, { by: cur.name, text: bit }];
               if (parts.length >= d.target) {
-                outcome = `the squad co-wrote a ${parts.length}-part story 📖`;
+                outcome = `Lore Builder complete (${parts.length} chapters)`;
               }
               return advance(
-                bumpScore({ ...c2, data: { ...d, parts } }, cur.uid, 1)
+                bumpScore({ ...c2, data: { ...d, parts } }, cur.uid, 5)
               );
             }
             return c2;
@@ -372,11 +358,15 @@ export default function GameOverlay({
       );
     }
 
-    if (g.id === "blitz") {
+    // Competitive bot score pressure in Aim Lab & Target Blitz
+    if (g.id === "blitz" || g.id === "aimlab") {
       const iv = window.setInterval(() => {
         mutate((c2) => {
-          if (c2.phase === "done" || c2.id !== "blitz") return c2;
+          if (c2.phase === "done") return c2;
           const b = bots[Math.floor(Math.random() * bots.length)];
+          if (c2.id === "aimlab") {
+            return bumpScore(c2, b.uid, 10);
+          }
           const d = c2.data;
           if (d.total >= d.target - 1) return c2;
           return bumpScore(
@@ -392,7 +382,7 @@ export default function GameOverlay({
             1
           );
         });
-      }, 1500);
+      }, 1700);
       timers.push(iv);
     }
 
@@ -418,105 +408,110 @@ export default function GameOverlay({
     0,
     Math.min(100, ((g.endsAt - Date.now()) / (g.endsAt - g.startedAt)) * 100)
   );
-  const humans = g.players.filter((p) => !p.bot).length;
   const formattedClock = `${String(Math.floor(left / 60)).padStart(
     2,
     "0"
   )}:${String(left % 60).padStart(2, "0")}`;
 
+  /* ---------- Post-Match Scoreboard Modal ---------- */
   if (g.phase === "done") {
+    const sorted = [...g.players].sort((a, b) => b.score - a.score);
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur">
-        <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-emerald-500/40 bg-slate-900 p-7 text-center shadow-2xl">
-          {["🎉", "✨", "🏆", "🎊", "⭐", "💜", "🎯", "🔥"].map((e, i) => (
-            <span
-              key={i}
-              className="confetti absolute text-2xl"
-              style={{ left: `${8 + i * 12}%`, animationDelay: `${i * 0.08}s` }}
-            >
-              {e}
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="pro-card w-full max-w-md overflow-hidden rounded-2xl">
+          <div className="border-b-2 border-[#111111] bg-[#ffe500] px-6 py-4 text-center">
+            <span className="inline-block rounded-lg border-2 border-[#111111] bg-white px-2.5 py-0.5 font-mono text-[10px] font-black uppercase">
+              MATCH COMPLETE
             </span>
-          ))}
-          <p className="animate-bounce text-5xl">🏆</p>
-          <h2 className="mt-2 text-2xl font-black text-white">
-            Mission Complete
-          </h2>
-          <p className="mt-1 text-sm leading-relaxed text-slate-300">
-            {g.result}
-          </p>
-          <div className="mt-4 space-y-1.5 text-left">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Match Standings
-            </p>
-            {[...g.players]
-              .sort((a, b) => b.score - a.score)
-              .map((p, i) => (
-                <div
-                  key={p.uid}
-                  className="flex items-center gap-2 rounded-xl border border-white/5 bg-slate-800/80 px-3 py-2"
-                >
-                  <span className="w-5 font-mono text-xs font-bold text-amber-400">
-                    #{i + 1}
-                  </span>
-                  <img
-                    src={p.avatar}
-                    alt=""
-                    className="h-6 w-6 rounded-full object-cover"
-                  />
-                  <span className="truncate text-sm font-semibold text-white">
-                    {p.name}{" "}
-                    {p.uid === me.id && (
-                      <span className="text-xs text-slate-400">(you)</span>
-                    )}
-                  </span>
-                  <span className="ml-auto font-mono text-sm font-black text-teal-300">
-                    +{p.score} pts
-                  </span>
-                </div>
-              ))}
+            <h2 className="mt-1.5 text-xl font-black text-[#111111]">
+              {meta.emoji} {meta.name}
+            </h2>
+            {g.result && (
+              <p className="mt-1 text-xs font-bold text-zinc-900">{g.result}</p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={onAbort}
-            className="mt-4 w-full rounded-xl bg-emerald-600/25 py-2 text-xs font-bold text-emerald-200 transition hover:bg-emerald-600/40"
-          >
-            Return to Chat Now →
-          </button>
+
+          <div className="space-y-2 bg-white p-5">
+            <p className="font-mono text-[10px] font-black uppercase tracking-wider text-zinc-500">
+              FINAL STANDINGS
+            </p>
+            {sorted.map((p, i) => (
+              <div
+                key={p.uid}
+                className={`flex items-center gap-2.5 rounded-xl border-2 border-[#111111] px-3 py-2 ${
+                  i === 0 ? "bg-[#bbf7d0]" : "bg-[#f7f5ee]"
+                }`}
+              >
+                <span className="w-6 font-mono text-xs font-black">
+                  #{i + 1}
+                </span>
+                <img
+                  src={p.avatar}
+                  alt=""
+                  className="h-6 w-6 rounded-full border border-[#111111] object-cover"
+                />
+                <span className="truncate text-sm font-black text-[#111111]">
+                  {p.name} {p.uid === me.id ? "(YOU)" : ""}
+                </span>
+                <span className="ml-auto font-mono text-xs font-black">
+                  +{p.score} PTS
+                </span>
+              </div>
+            ))}
+
+            <div className="mt-4 flex gap-2 pt-2">
+              {onRematch && (
+                <button
+                  type="button"
+                  onClick={() => onRematch(g.id)}
+                  className="pro-btn-accent flex-1 rounded-xl py-2.5 font-mono text-xs font-black uppercase"
+                >
+                  ↻ REMATCH
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onAbort}
+                className="pro-btn flex-1 rounded-xl py-2.5 font-mono text-xs font-black uppercase"
+              >
+                BACK TO CHAT →
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-2 backdrop-blur-sm sm:p-4">
-      <div className="flex max-h-[96vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-violet-500/40 bg-slate-900 shadow-2xl">
-        {/* Tactical Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-violet-950 to-slate-900 border-b border-white/10 px-4 py-3 shadow-lg">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-2xl shadow-inner">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+      <div className="pro-card game-light-stage flex max-h-[95vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl">
+        {/* Crisp Esports HUD Header */}
+        <div className="border-b-2 border-[#111111] bg-[#f3f0e6] px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#111111] bg-[#ffe500] text-xl">
               {meta.emoji}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="rounded bg-violet-500/25 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-violet-200">
+                <span className="rounded border border-[#111111] bg-white px-1.5 py-0.5 font-mono text-[9px] font-black uppercase">
                   {meta.tag}
                 </span>
-                <span className="text-[10px] font-semibold text-amber-300/90">
-                  🔒 Live Squad Session
+                <span className="font-mono text-[10px] font-bold text-zinc-600">
+                  LIVE SYNCED MATCH
                 </span>
               </div>
-              <h2 className="truncate text-base sm:text-lg font-black leading-tight text-white">
+              <h2 className="truncate text-base font-black text-[#111111] sm:text-lg">
                 {meta.name}
               </h2>
             </div>
 
-            {/* 7-Segment Style Digital Countdown + End Control */}
             <div className="flex items-center gap-2">
               <span
-                className={`rounded-xl border px-3 py-1 font-mono text-base sm:text-lg font-black tracking-wider shadow-inner ${
+                className={`rounded-xl border-2 border-[#111111] px-3 py-1 font-mono text-base font-black ${
                   left <= 10
-                    ? "border-red-500/60 bg-red-950/80 text-red-300 animate-pulse"
-                    : "border-emerald-500/30 bg-slate-950 text-emerald-300"
+                    ? "bg-[#fecaca] text-[#991b1b] animate-pulse"
+                    : "bg-white text-[#111111]"
                 }`}
               >
                 {formattedClock}
@@ -525,8 +520,8 @@ export default function GameOverlay({
                 <button
                   type="button"
                   onClick={onAbort}
-                  title="End mission & unlock chat"
-                  className="rounded-xl border border-white/10 bg-slate-800/90 px-2.5 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-rose-500/25 hover:text-rose-200"
+                  title="End match"
+                  className="pro-btn rounded-xl px-2.5 py-1.5 text-xs font-black"
                 >
                   ✕
                 </button>
@@ -534,55 +529,45 @@ export default function GameOverlay({
             </div>
           </div>
 
-          <p className="mt-1 text-xs text-slate-300">{meta.blurb}</p>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-950">
+          <div className="mt-2 h-2 overflow-hidden rounded-full border border-[#111111] bg-white">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-teal-300 to-violet-400 transition-all duration-500"
+              className="h-full bg-[#111111] transition-all duration-500"
               style={{ width: `${pct}%` }}
             />
           </div>
         </div>
 
-        {/* Squad Roster */}
-        <div className="flex items-center gap-2 overflow-x-auto border-b border-white/10 bg-slate-950/60 px-4 py-2">
-          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Active
+        {/* Active Squad Strip */}
+        <div className="flex items-center gap-2 overflow-x-auto border-b-2 border-[#111111] bg-white px-4 py-2">
+          <span className="shrink-0 font-mono text-[10px] font-black uppercase text-zinc-500">
+            PLAYERS:
           </span>
           {g.players.map((p) => {
             const active = currentPlayer(g)?.uid === p.uid;
             return (
               <div
                 key={p.uid}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 transition ${
-                  active
-                    ? "bg-emerald-500/20 ring-1 ring-emerald-400/50 shadow"
-                    : "bg-slate-800/80"
+                className={`flex shrink-0 items-center gap-1.5 rounded-lg border-[1.5px] border-[#111111] px-2.5 py-0.5 text-xs font-bold ${
+                  active ? "bg-[#ffe500]" : "bg-[#f7f5ee]"
                 }`}
               >
                 <img
                   src={p.avatar}
                   alt=""
-                  className="h-5 w-5 rounded-full object-cover"
+                  className="h-4 w-4 rounded-full border border-[#111111] object-cover"
                 />
-                <span className="text-xs font-semibold text-white">
-                  {p.uid === me.id ? "You" : p.name}
-                </span>
-                <span className="font-mono text-[10px] font-bold text-teal-300">
-                  {p.score}
-                </span>
+                <span>{p.uid === me.id ? "YOU" : p.name}</span>
+                <span className="font-mono font-black">{p.score}</span>
               </div>
             );
           })}
-          <span className="ml-auto shrink-0 text-[10px] font-semibold text-slate-400">
-            {humans} {humans === 1 ? "human" : "humans"} · {g.players.length} total
-          </span>
         </div>
 
         {/* Game Viewport */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-5">
-          {g.id === "dialogue" && <DialogueBaaziGame {...props} />}
-          {g.id === "golgappa" && <GolgappaChaatGame {...props} />}
-          {g.id === "bargain" && <AutoBargainGame {...props} />}
+        <div className="chat-scroll flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#f7f5ee] px-4 py-4 sm:px-5">
+          {g.id === "aimlab" && <DialogueBaaziGame {...props} />}
+          {g.id === "sector" && <GolgappaChaatGame {...props} />}
+          {g.id === "duel" && <AutoBargainGame {...props} />}
           {g.id === "bomb" && <BombGame {...props} />}
           {g.id === "astro" && <AstroGame {...props} />}
           {g.id === "reactor" && <ReactorGame {...props} />}
@@ -600,31 +585,27 @@ export default function GameOverlay({
           )}
         </div>
 
-        {/* Live Squad Comms Radio Channel */}
-        <div className="border-t border-white/10 bg-slate-950/90 px-4 py-2.5">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            📻 Squad Radio Comms — Live Synced Across Players
-          </p>
+        {/* Live Match Comms Strip */}
+        <div className="border-t-2 border-[#111111] bg-[#f3f0e6] px-4 py-2.5">
           <div
             ref={feedRef}
-            className="mb-2 h-16 space-y-0.5 overflow-y-auto text-xs"
+            className="chat-scroll mb-2 h-14 space-y-0.5 overflow-y-auto rounded-lg border-[1.5px] border-[#111111] bg-white px-3 py-1.5 text-xs"
           >
             {g.feed.length === 0 && (
-              <p className="text-slate-500">
-                Radio channel live — call out clues, coordinates, or moves here!
+              <p className="font-mono text-[11px] text-zinc-400">
+                MATCH COMMS LIVE — Call out intel or moves here…
               </p>
             )}
             {g.feed.map((f, i) => (
-              <p
-                key={i}
-                className={
-                  f.sys ? "font-medium text-teal-300/85" : "text-slate-200"
-                }
-              >
-                {!f.sys && (
-                  <span className="font-bold text-violet-300">{f.name}: </span>
+              <p key={i} className="text-[#111111]">
+                {!f.sys ? (
+                  <span className="font-black">{f.name}: </span>
+                ) : (
+                  <span className="font-mono text-[10px] font-black text-zinc-500">
+                    [SYS]{" "}
+                  </span>
                 )}
-                {f.text}
+                <span className="font-medium">{f.text}</span>
               </p>
             ))}
           </div>
@@ -633,14 +614,14 @@ export default function GameOverlay({
               value={chat}
               onChange={(e) => setChat(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendTeam()}
-              placeholder="Send quick callout to squad…"
-              className="flex-1 rounded-xl border border-white/10 bg-slate-800 px-3 py-1.5 text-sm text-white outline-none focus:border-violet-400"
+              placeholder="Team callout…"
+              className="pro-input flex-1 rounded-xl px-3 py-1.5 text-xs font-semibold"
             />
             <button
               onClick={sendTeam}
-              className="rounded-xl bg-violet-600 px-3.5 text-sm font-bold text-white hover:bg-violet-500"
+              className="pro-btn-dark rounded-xl px-4 font-mono text-xs font-black uppercase"
             >
-              Send
+              SEND
             </button>
           </div>
         </div>

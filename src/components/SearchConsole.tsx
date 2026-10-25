@@ -18,12 +18,9 @@ interface Props {
 const REFINERS = [
   "cheapest options",
   "this weekend",
-  "for 4 people",
-  "near the city centre",
-  "with top ratings",
+  "for 4 players",
+  "top rated",
   "budget friendly",
-  "morning timings",
-  "family friendly",
 ];
 
 function computeSplitForCount(
@@ -38,9 +35,10 @@ function computeSplitForCount(
   const suffix = numMatch[3] || "";
   if (!Number.isFinite(totalVal)) return { ...split, count };
   const per = totalVal / Math.max(1, count);
-  const formatted = per >= 100
-    ? Math.round(per).toLocaleString()
-    : per.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const formatted =
+    per >= 100
+      ? Math.round(per).toLocaleString()
+      : per.toLocaleString(undefined, { maximumFractionDigits: 1 });
   return {
     total: split.total,
     perPerson: `${prefix}${formatted}${suffix}`.trim(),
@@ -60,10 +58,7 @@ export default function SearchConsole({
   const [note, setNote] = useState("");
   const [askVote, setAskVote] = useState(true);
   const [paxCount, setPaxCount] = useState(4);
-  const [dictating, setDictating] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const speechRef = useRef<any>(null);
   const ranRef = useRef(false);
 
   const search = async (q = query, v = vertical) => {
@@ -75,7 +70,6 @@ export default function SearchConsole({
     try {
       const res = await runSearch(clean, v);
       setCard(res);
-      setHistory((h) => (h[0] === clean ? h : [clean, ...h].slice(0, 6)));
       sounds.playSuccess();
     } finally {
       setLoading(false);
@@ -92,13 +86,6 @@ export default function SearchConsole({
 
   const guessed = detectVertical(query || initialQuery);
 
-  const refine = (extra: string) => {
-    sounds.playPop();
-    const q = `${query} ${extra}`.replace(/\s+/g, " ").trim();
-    setQuery(q);
-    search(q, vertical);
-  };
-
   const composedCard: SearchCard | null = card
     ? {
         ...card,
@@ -108,140 +95,85 @@ export default function SearchConsole({
       }
     : null;
 
-  const share = () => {
-    if (!composedCard) return;
-    sounds.playSend();
-    onShare(composedCard);
-  };
-
-  const toggleVoice = () => {
-    if (dictating) {
-      speechRef.current?.stop();
-      setDictating(false);
-      return;
-    }
-    const SR =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-    if (!SR) return;
-    sounds.playPop();
-    const rec = new SR();
-    rec.lang = "en-IN";
-    rec.interimResults = true;
-    rec.continuous = false;
-    rec.onresult = (e: any) => {
-      let t = "";
-      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
-      setQuery(t);
-      if (e.results[0].isFinal) {
-        search(t, vertical);
-      }
-    };
-    rec.onend = () => setDictating(false);
-    rec.onerror = () => setDictating(false);
-    rec.start();
-    speechRef.current = rec;
-    setDictating(true);
-  };
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/85 p-0 backdrop-blur-md sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-slate-900 shadow-2xl sm:rounded-3xl"
+        className="pro-card flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-b border-white/10 bg-gradient-to-r from-teal-950/60 via-slate-900 to-violet-950/60 px-4 py-3 sm:px-6">
-          <div className="mb-2.5 flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-500/20 text-sm text-teal-300">
-              🔎
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-black text-white">
-                Search &amp; Collaborative Planner
+        <div className="border-b-2 border-[#111111] bg-[#f3f0e6] px-5 py-3.5">
+          <div className="mb-2.5 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-black text-[#111111]">
+                SQUAD INTEL &amp; PLANNER
               </h2>
-              <p className="text-[11px] text-slate-400">
-                Live browser data for trains, flights, movies, weather &amp; forex · Preview privately before sharing
+              <p className="text-xs text-zinc-600">
+                Live weather, trips, schedules, split math &amp; group vote cards
               </p>
             </div>
             <button
               onClick={onClose}
-              className="rounded-xl bg-slate-800/80 p-2 text-slate-400 hover:bg-slate-700 hover:text-white"
+              className="pro-btn rounded-lg px-2.5 py-1 text-xs font-black"
             >
               ✕
             </button>
           </div>
 
-          <div className="relative flex items-center gap-2">
+          <div className="flex gap-2">
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && search()}
-              placeholder="जैसे: Rishikesh trip for 4 · trains Delhi to Varanasi · 3600 split 4 friends"
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 pr-24 text-sm text-white placeholder-slate-500 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              placeholder="Search weather, trip plan, currency split, movies, schedules…"
+              className="pro-input flex-1 rounded-xl px-3.5 py-2.5 text-sm font-semibold"
             />
-            <div className="absolute right-2 flex items-center gap-1">
-              <button
-                onClick={toggleVoice}
-                title="Voice search"
-                className={`rounded-xl p-1.5 transition ${
-                  dictating
-                    ? "animate-pulse bg-rose-500 text-white"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                {dictating ? "🔴" : "🎤"}
-              </button>
-              <button
-                onClick={() => search()}
-                disabled={loading || !query.trim()}
-                className="rounded-xl bg-gradient-to-r from-teal-500 to-violet-600 px-4 py-1.5 text-xs font-bold text-white shadow-md transition hover:brightness-110 disabled:opacity-40"
-              >
-                {loading ? "…" : "Search"}
-              </button>
-            </div>
+            <button
+              onClick={() => search()}
+              disabled={loading || !query.trim()}
+              className="pro-btn-accent rounded-xl px-4 font-mono text-xs font-black uppercase"
+            >
+              {loading ? "…" : "SEARCH"}
+            </button>
           </div>
 
-          <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-1">
+          <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
             {VERTICALS.map((v) => {
               const active = vertical === v.id;
               const auto = vertical === "auto" && v.id === guessed;
               return (
                 <button
                   key={v.id}
-                  title={v.hint}
                   onClick={() => {
                     sounds.playPop();
                     setVertical(v.id);
                     if (query.trim()) search(query, v.id);
                   }}
-                  className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  className={`shrink-0 rounded-lg border-[1.5px] border-[#111111] px-2.5 py-1 text-xs font-bold transition ${
                     active
-                      ? "bg-teal-400 text-slate-950 shadow-md shadow-teal-950/50"
+                      ? "bg-[#111111] text-white"
                       : auto
-                      ? "bg-teal-500/20 text-teal-200 ring-1 ring-teal-400/50"
-                      : "bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+                      ? "bg-[#ffe500] text-[#111111]"
+                      : "bg-white text-zinc-700 hover:bg-zinc-100"
                   }`}
                 >
-                  <span className="mr-1">{v.icon}</span>
-                  {v.label}
-                  {auto && " ·auto"}
+                  {v.icon} {v.label}
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        <div className="chat-scroll flex-1 overflow-y-auto bg-[#f7f5ee] p-4 sm:p-5">
           {!card && !loading && (
-            <div className="mb-4">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                💡 Instant Inspiration Presets
+            <div>
+              <p className="mb-2 font-mono text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                QUICK TEMPLATES
               </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {SEARCH_PRESETS.map((p) => (
                   <button
                     key={p.label}
@@ -249,12 +181,9 @@ export default function SearchConsole({
                       setQuery(p.query);
                       search(p.query, "auto");
                     }}
-                    className="flex flex-col items-start gap-1 rounded-2xl border border-white/5 bg-slate-800/70 p-3 text-left transition hover:border-teal-500/40 hover:bg-slate-800 active:scale-95"
+                    className="pro-btn rounded-xl px-3.5 py-2.5 text-left text-xs font-bold"
                   >
-                    <span className="text-xs font-bold text-white">{p.label}</span>
-                    <span className="w-full truncate text-[10px] text-slate-400">
-                      {p.query}
-                    </span>
+                    {p.label}
                   </button>
                 ))}
               </div>
@@ -262,135 +191,78 @@ export default function SearchConsole({
           )}
 
           {loading && (
-            <div className="space-y-3 py-6">
-              <div className="h-4 w-1/3 animate-pulse rounded bg-slate-800" />
-              <div className="h-28 animate-pulse rounded-2xl bg-slate-800" />
-              <div className="grid grid-cols-2 gap-2">
-                <div className="h-12 animate-pulse rounded-xl bg-slate-800/60" />
-                <div className="h-12 animate-pulse rounded-xl bg-slate-800/60" />
-              </div>
-              <p className="animate-pulse pt-2 text-center text-xs font-semibold text-teal-400">
-                Querying live weather, maps &amp; web sources…
-              </p>
+            <div className="py-12 text-center font-mono text-xs font-black uppercase text-zinc-600">
+              Fetching live intel…
             </div>
           )}
 
-          {!loading && composedCard && (
-            <>
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Card Preview (Private until shared)
-                </p>
-                {composedCard.splitEstimate && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-2.5 py-1 text-xs text-slate-300">
-                    <span>Split size:</span>
-                    <button
-                      onClick={() => setPaxCount(Math.max(1, paxCount - 1))}
-                      className="px-1 font-bold text-slate-400 hover:text-white"
-                    >
-                      −
-                    </button>
-                    <span className="font-mono font-bold text-teal-300">
-                      {paxCount}
-                    </span>
-                    <button
-                      onClick={() => setPaxCount(Math.min(20, paxCount + 1))}
-                      className="px-1 font-bold text-slate-400 hover:text-white"
-                    >
-                      +
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <SearchCardView card={composedCard} preview />
-
-              <p className="mb-1.5 mt-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                ✍️ Refine &amp; Tweak Query
-              </p>
-              <div className="mb-3 flex flex-wrap gap-1.5">
+          {composedCard && !loading && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
                 {REFINERS.map((r) => (
                   <button
                     key={r}
-                    onClick={() => refine(r)}
-                    className="rounded-xl border border-white/5 bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300 transition hover:border-teal-400/40 hover:bg-slate-700"
+                    onClick={() => {
+                      const q2 = `${query} ${r}`.trim();
+                      setQuery(q2);
+                      search(q2, vertical);
+                    }}
+                    className="rounded-lg border border-[#111111] bg-white px-2.5 py-1 text-[11px] font-bold hover:bg-[#ffe500]"
                   >
                     + {r}
                   </button>
                 ))}
-                <button
-                  onClick={() => search(query, vertical)}
-                  className="rounded-xl bg-teal-500/10 px-3 py-1 text-xs font-bold text-teal-300 hover:bg-teal-500/20"
-                >
-                  🔄 Re-run search
-                </button>
               </div>
 
-              <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                maxLength={140}
-                placeholder="Add your note for the room (e.g. 'Day 2 plan looks awesome, thoughts?')"
-                className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-violet-400"
-              />
+              <SearchCardView card={composedCard} preview />
 
-              <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={askVote}
-                  onChange={(e) => setAskVote(e.target.checked)}
-                  className="h-4 w-4 rounded accent-violet-500"
-                />
-                <span>
-                  <b>Attach interactive live poll</b> — everyone in the room can vote with live % bars
-                </span>
-              </label>
-
-              {history.length > 1 && (
-                <div className="mt-4">
-                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    Recent Searches
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {history.slice(1).map((h) => (
-                      <button
-                        key={h}
-                        onClick={() => {
-                          setQuery(h);
-                          search(h, vertical);
-                        }}
-                        className="max-w-[14rem] truncate rounded-lg bg-slate-800/80 px-2.5 py-1 text-[11px] text-slate-400 hover:bg-slate-700 hover:text-white"
-                      >
-                        {h}
-                      </button>
-                    ))}
-                  </div>
+              <div className="pro-panel space-y-2.5 rounded-xl p-3.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs font-bold">
+                    <input
+                      type="checkbox"
+                      checked={askVote}
+                      onChange={(e) => setAskVote(e.target.checked)}
+                      className="accent-[#111111]"
+                    />
+                    Include squad vote buttons
+                  </label>
+                  {composedCard.splitEstimate && (
+                    <div className="ml-auto flex items-center gap-1.5 text-xs font-bold">
+                      <span>Split by:</span>
+                      {[2, 3, 4, 6].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setPaxCount(n)}
+                          className={`rounded border border-[#111111] px-2 py-0.5 font-mono text-xs ${
+                            paxCount === n ? "bg-[#111111] text-white" : "bg-white"
+                          }`}
+                        >
+                          {n}p
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </>
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Optional note for the lobby…"
+                  className="pro-input w-full rounded-lg px-3 py-1.5 text-xs font-semibold"
+                />
+                <button
+                  onClick={() => {
+                    sounds.playSend();
+                    onShare(composedCard);
+                  }}
+                  className="pro-btn-accent w-full rounded-xl py-2.5 font-mono text-xs font-black uppercase"
+                >
+                  POST INTEL CARD TO CHAT →
+                </button>
+              </div>
+            </div>
           )}
-        </div>
-
-        <div className="flex items-center gap-2 border-t border-white/10 bg-slate-950 px-4 py-3 sm:px-6">
-          <button
-            onClick={onClose}
-            className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-700"
-          >
-            Discard
-          </button>
-          <button
-            onClick={() => inputRef.current?.focus()}
-            className="hidden rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-700 sm:block"
-          >
-            ✏️ Edit Query
-          </button>
-          <button
-            onClick={share}
-            disabled={!composedCard}
-            className="ml-auto rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-teal-500 px-6 py-2.5 text-sm font-black text-white shadow-lg transition hover:brightness-110 disabled:opacity-40"
-          >
-            📤 Share Card to Room
-          </button>
         </div>
       </div>
     </div>

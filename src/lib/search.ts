@@ -28,14 +28,14 @@ export const VERTICALS: {
 ];
 
 export const SEARCH_PRESETS = [
-  { label: "🌊 ऋषिकेश राफ्टिंग ट्रिप", query: "plan a 3-day trip to Rishikesh this weekend for 4 people" },
-  { label: "🚆 दिल्ली → बनारस वंदे भारत", query: "trains from New Delhi to Varanasi tomorrow" },
-  { label: "🥟 Noida Sec-18 चाट & मोमोज़", query: "best street food momos and chaat in Sector 18 Noida" },
-  { label: "🕌 लखनऊ कबाब + मौसम", query: "weather in Lucknow and Tunday Kababi places" },
-  { label: "🏖 गोवा ट्रिप (4 दोस्त)", query: "plan a 4-day trip to Goa for 4 friends budget split" },
-  { label: "🎬 Noida/Delhi मूवी टिकट", query: "movie tickets showtimes in Noida PVR tonight" },
-  { label: "🏔 मनाली रोड ट्रिप & होटल", query: "hotels in Manali and live weather forecast" },
-  { label: "💸 $500 USD → ₹ INR हिसाब", query: "500 usd to inr split between 4 friends" },
+  { label: "🧭 Weekend Trip Plan", query: "plan a 3-day weekend trip for 4 people" },
+  { label: "🎬 Cinema Tonight", query: "movie tickets and showtimes tonight" },
+  { label: "🌦 Live Weather", query: "weather forecast for the next 5 days" },
+  { label: "🚆 Express Trains", query: "trains tomorrow morning schedule" },
+  { label: "✈️ Flight Fares", query: "cheapest flights next month" },
+  { label: "🍕 Food Spots", query: "top rated pizza and cafes nearby" },
+  { label: "💱 $500 Split 4 Ways", query: "500 usd to inr split between 4 people" },
+  { label: "🏨 Stays & Villas", query: "top rated stays for 4 guests" },
 ];
 
 const META: Record<Vertical, { label: string; icon: string }> = {

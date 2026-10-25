@@ -1,79 +1,101 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import JoinScreen from "./components/JoinScreen";
+import ChatRoom from "./components/ChatRoom";
 import type { User } from "./lib/types";
+import { loadPlayerStats } from "./lib/ranks";
 import {
   getRoomFromUrl,
-  isOnline,
-  loadMembers,
   loadUser,
   normalizeRoomSlug,
   saveUser,
   setRoomInUrl,
 } from "./lib/store";
-import JoinScreen from "./components/JoinScreen";
-import ChatRoom from "./components/ChatRoom";
-
-const CAP = 20;
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(() => loadUser());
-  const [room, setRoom] = useState(() => getRoomFromUrl());
-  const [joined, setJoined] = useState(false);
-  const [full, setFull] = useState(false);
+  const [savedUser, setSavedUser] = useState<User | null>(() => loadUser());
+  const [session, setSession] = useState<{ user: User; room: string } | null>(
+    () => {
+      try {
+        const existing = loadUser();
+        const urlRoom = getRoomFromUrl();
+        const hasExplicitRoom =
+          window.location.pathname !== "/" ||
+          Boolean(new URLSearchParams(window.location.search).get("room")) ||
+          Boolean(window.location.hash.replace(/^#/, "").trim());
+        if (existing && hasExplicitRoom) {
+          const stats = loadPlayerStats();
+          return {
+            user: {
+              ...existing,
+              elo: stats.elo,
+              wins: stats.wins,
+              streak: stats.streak,
+            },
+            room: urlRoom,
+          };
+        }
+      } catch {
+        /* ignore */
+      }
+      return null;
+    }
+  );
 
-  // Listen to browser back/forward navigation between rooms
   useEffect(() => {
-    const onPop = () => setRoom(getRoomFromUrl());
+    const onPop = () => {
+      const next = getRoomFromUrl();
+      if (session && next !== session.room) {
+        setSession({ ...session, room: next });
+      }
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
+  }, [session]);
+
+  const handleJoin = (user: User, rawRoom: string) => {
+    const room = normalizeRoomSlug(rawRoom);
+    saveUser(user);
+    setSavedUser(user);
+    setRoomInUrl(room);
+    setSession({ user, room });
+  };
+
+  const handleUserUpdate = useCallback((patch: Partial<User>) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev.user, ...patch };
+      saveUser(updated);
+      setSavedUser(updated);
+      return { ...prev, user: updated };
+    });
   }, []);
 
-  const handleJoin = (u: User, rawRoom: string) => {
-    const r = normalizeRoomSlug(rawRoom);
-    const members = loadMembers(r);
-    const onlineHumans = members.filter(
-      (m) => m.id !== u.id && !m.bot && isOnline(m)
-    );
-    const alreadyIn = members.some((m) => m.id === u.id);
-    if (!alreadyIn && onlineHumans.length >= CAP) {
-      setFull(true);
-      setRoom(r);
-      return;
+  const handleLeave = () => {
+    try {
+      window.history.replaceState({}, "", "/");
+    } catch {
+      /* ignore */
     }
-    saveUser(u);
-    setUser(u);
-    setRoom(r);
-    setFull(false);
-    setRoomInUrl(r);
-    setJoined(true);
+    setSession(null);
   };
 
-  const handleUpdateUser = (next: User) => {
-    saveUser(next);
-    setUser(next);
-  };
-
-  if (!joined || !user) {
+  if (!session) {
     return (
       <JoinScreen
-        initialRoom={room}
-        savedUser={user}
+        initialRoom={getRoomFromUrl()}
+        savedUser={savedUser}
         onJoin={handleJoin}
-        full={full}
       />
     );
   }
 
   return (
     <ChatRoom
-      me={user}
-      room={room}
-      onUpdateMe={handleUpdateUser}
-      onSwitchRoom={(nextRoom) => {
-        const clean = normalizeRoomSlug(nextRoom);
-        setRoom(clean);
-        setRoomInUrl(clean);
-      }}
-      onLeave={() => setJoined(false)}
+      key={session.room}
+      me={session.user}
+      room={session.room}
+      onUserUpdate={handleUserUpdate}
+      onLeave={handleLeave}
     />
   );
 }

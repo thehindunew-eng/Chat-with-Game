@@ -1,4 +1,4 @@
-// Tactile Web Audio API sound effects + Desi Bhaukaal Soundboard engine
+// Tactile Mechanical Web Audio UI & Pro Match SFX Engine
 
 export type SoundDropId =
   | "horn"

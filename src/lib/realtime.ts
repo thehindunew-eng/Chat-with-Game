@@ -15,10 +15,13 @@ interface DbMessageRow {
     attachment?: Message["attachment"];
     card?: Message["card"];
     poll?: Message["poll"];
+    lobby?: Message["lobby"];
+    matchResult?: Message["matchResult"];
     replyTo?: Message["replyTo"];
     reactions?: Message["reactions"];
     seenBy?: string[];
     editedAt?: number;
+    senderElo?: number;
   };
 }
 
@@ -35,16 +38,18 @@ function rowToMessage(row: DbMessageRow): Message {
     attachment: p.attachment,
     card: p.card,
     poll: p.poll,
+    lobby: p.lobby,
+    matchResult: p.matchResult,
     replyTo: p.replyTo,
     reactions: p.reactions,
     seenBy: p.seenBy,
     editedAt: p.editedAt,
+    senderElo: p.senderElo,
     delivery: "cloud",
   };
 }
 
 function messageToRow(room: string, m: Message): DbMessageRow {
-  // Keep DB payload fast and well under Postgres row limits
   const safeAttachment =
     m.attachment && m.attachment.url.length > 650_000
       ? { ...m.attachment, url: "", ephemeral: true }
@@ -63,10 +68,13 @@ function messageToRow(room: string, m: Message): DbMessageRow {
       attachment: safeAttachment,
       card: m.card,
       poll: m.poll,
+      lobby: m.lobby,
+      matchResult: m.matchResult,
       replyTo: m.replyTo,
       reactions: m.reactions,
       seenBy: m.seenBy,
       editedAt: m.editedAt,
+      senderElo: m.senderElo,
     },
   };
 }
@@ -94,7 +102,6 @@ export class RoomSyncClient {
   }
 
   async connect(cutoffTs: number): Promise<void> {
-    // 1. Always spin up local BroadcastChannel for instant zero-ms multi-tab sync
     if (typeof BroadcastChannel !== "undefined") {
       const bus = new BroadcastChannel("chatarena_" + this.room);
       bus.onmessage = (ev: MessageEvent<BusEvent>) => {
@@ -110,7 +117,6 @@ export class RoomSyncClient {
 
     this.cb.onStatus("connecting");
 
-    // 2. Subscribe to Supabase Realtime Presence + Broadcast + Postgres Changes
     const ch = supabase.channel(`chatarena-v2:${this.room}`, {
       config: {
         presence: { key: this.me.id },
@@ -127,16 +133,18 @@ export class RoomSyncClient {
         if (!latest) continue;
         humans.push({
           id: uid,
-          name: String(latest.name || "Guest"),
+          name: String(latest.name || "Player"),
           avatar: String(latest.avatar || ""),
           bio: latest.bio ? String(latest.bio) : undefined,
           device: latest.device === "mobile" ? "mobile" : "desktop",
+          elo: typeof latest.elo === "number" ? latest.elo : 1000,
+          wins: typeof latest.wins === "number" ? latest.wins : 0,
+          streak: typeof latest.streak === "number" ? latest.streak : 0,
           joinedAt: Number(latest.joinedAt || Date.now()),
           lastSeen: Date.now(),
           bot: false,
         });
       }
-      // Deterministic host election: earliest joined human in the room is Room Host
       humans.sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
       if (humans.length > 0) humans[0] = { ...humans[0], admin: true };
       this.cb.onCloudMembers(humans);
@@ -204,8 +212,11 @@ export class RoomSyncClient {
           id: this.me.id,
           name: this.me.name,
           avatar: this.me.avatar,
-          bio: this.me.bio || "Online",
+          bio: this.me.bio || "Ready",
           device: this.me.device || "desktop",
+          elo: this.me.elo || 1000,
+          wins: this.me.wins || 0,
+          streak: this.me.streak || 0,
           joinedAt: this.joinedAt,
         });
       } else if (
@@ -218,8 +229,6 @@ export class RoomSyncClient {
     });
 
     this.channel = ch;
-
-    // 3. Hydrate persisted room history + active live game in parallel
     await this.hydrateFromCloud(cutoffTs);
   }
 
@@ -248,7 +257,6 @@ export class RoomSyncClient {
 
       if (!this.closed && gameRes.data?.state) {
         const cloudGame = gameRes.data.state as LiveGame;
-        // Clear abandoned stale games whose timer expired > 15s ago
         if (cloudGame.endsAt + 15_000 < Date.now()) {
           void this.persistGame(null);
         } else {
@@ -256,7 +264,7 @@ export class RoomSyncClient {
         }
       }
     } catch {
-      // Graceful fallback — local storage remains completely functional
+      /* local fallback active */
     }
   }
 
@@ -267,8 +275,11 @@ export class RoomSyncClient {
         id: me.id,
         name: me.name,
         avatar: me.avatar,
-        bio: me.bio || "Online",
+        bio: me.bio || "Ready",
         device: me.device || "desktop",
+        elo: me.elo || 1000,
+        wins: me.wins || 0,
+        streak: me.streak || 0,
         joinedAt: this.joinedAt,
       });
     }
